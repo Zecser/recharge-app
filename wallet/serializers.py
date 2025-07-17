@@ -20,6 +20,15 @@ class WalletTransactionSerializer(serializers.ModelSerializer):
         fields = ['id', 'wallet_user', 'transaction_type', 'amount', 'description', 'created_by_email', 'created_at']
         read_only_fields = ['id', 'created_at']
 
+from rest_framework import serializers
+
+class RechargeTransactionSerializer(serializers.Serializer):
+    amount = serializers.DecimalField(max_digits=10, decimal_places=2)
+    service_type = serializers.CharField(required=False)
+    description = serializers.CharField(required=False)
+    credit_to_email = serializers.EmailField(required=True)
+
+
 class AddToWalletSerializer(serializers.Serializer):
     user_email = serializers.EmailField()
     amount = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=0.01)
