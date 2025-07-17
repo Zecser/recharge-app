@@ -23,6 +23,8 @@ from .serializers import (
 )
 import random
 import string
+from wallet.models import *
+from plans.models import *
 from notifications.models import Notification
 from notifications.utils import generate_notification_content,is_notification_allowed
 
@@ -70,6 +72,7 @@ def signup(request):
     serializer = UserSignupSerializer(data=request.data)
     if serializer.is_valid():
         user = serializer.save()
+        Wallet.objects.create(user=user) 
         if is_notification_allowed('recharge_success', 'in_app'):
             data = generate_notification_content(user, 'USER_REGISTERED')
             Notification.objects.create(
@@ -80,6 +83,9 @@ def signup(request):
 )
 
         refresh = RefreshToken.for_user(user)
+        plans = Plans.objects.filter(is_active=True).values(
+            'id', 'title', 'description', 'validity', 'amount', 'identifier'
+        )
         return Response({
             'message': 'User created successfully',
             'user': {
@@ -87,8 +93,11 @@ def signup(request):
                 'email': user.email,
                 'phone': user.phone,
                 'name': f"{user.first_name} {user.last_name}",
-                'user_type': user.user_type,
+                'user_type': user.user_type,},
+                  'wallet': {
+                'balance': "0.00",
             },
+             'plans': list(plans),
             'tokens': {
                 'refresh': str(refresh),
                 'access': str(refresh.access_token),
