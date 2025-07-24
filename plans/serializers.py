@@ -17,13 +17,12 @@ class PlansSerializer(serializers.ModelSerializer):
             'validity', 'is_active', 'amount', 'identifier', 'created_at'
         ]
         read_only_fields = ['created_at']
-
 class PlansListSerializer(serializers.ModelSerializer):
-    provider_name = serializers.CharField(source='provider.title', read_only=True)
-    
+    provider = ProviderSerializer(read_only=True)
+
     class Meta:
         model = Plans
         fields = [
-            'id', 'provider_name', 'title', 'description', 
+            'id', 'provider', 'title', 'description', 
             'validity', 'amount', 'identifier', 'created_at'
         ]
