@@ -58,11 +58,14 @@ class UserSignupSerializer(serializers.ModelSerializer):
         return user
 
 
+# class UserLoginSerializer(serializers.Serializer):
+#     email = serializers.EmailField()
+#     password = serializers.CharField()
+
 class UserLoginSerializer(serializers.Serializer):
-    email = serializers.EmailField()
+    phone = serializers.CharField()
     password = serializers.CharField()
-
-
+    
 class OTPGenerateSerializer(serializers.Serializer):
     phone = serializers.CharField(max_length=15)
 

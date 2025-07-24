@@ -113,8 +113,8 @@ def signup(request):
 
 @swagger_auto_schema(
     method='post',
-    operation_summary="Email Login",
-    operation_description="Login using email and password to get JWT tokens",
+    operation_summary="Phone Login",
+    operation_description="Login using phone number and password to get JWT tokens",
     request_body=UserLoginSerializer,
     responses={
         200: openapi.Response(
@@ -129,10 +129,7 @@ def signup(request):
                         "name": "John Doe",
                         "user_type": 4
                     },
-                    "tokens": {
-                        "refresh": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
-                        "access": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
-                    }
+                    "access": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
                 }
             }
         ),
@@ -148,7 +145,7 @@ def signup(request):
             description="Bad request - validation errors",
             examples={
                 "application/json": {
-                    "email": ["This field is required."],
+                    "phone": ["This field is required."],
                     "password": ["This field is required."]
                 }
             }
@@ -156,6 +153,95 @@ def signup(request):
     },
     tags=['Authentication']
 )
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def login_phone(request):
+    serializer = UserLoginSerializer(data=request.data)
+    if serializer.is_valid():
+        phone = serializer.validated_data.get('phone')
+        password = serializer.validated_data['password']
+
+        try:
+            user = User.objects.get(phone=phone)
+            if user.check_password(password):
+                refresh = RefreshToken.for_user(user)
+
+                response = Response({
+                    'message': 'Login successful',
+                    'user': {
+                        'id': user.id,
+                        'email': user.email,
+                        'phone': user.phone,
+                        'name': f"{user.first_name} {user.last_name}",
+                        'user_type': user.get_user_type_display(),
+                        'sim_provider': user.sim_provider,
+                    },
+                    'access': str(refresh.access_token)
+                }, status=status.HTTP_200_OK)
+
+                response.set_cookie(
+                    key='refresh_token',
+                    value=str(refresh),
+                    httponly=True,
+                    secure=True,
+                    samesite='Lax'
+                )
+
+                return response
+            else:
+                return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        except User.DoesNotExist:
+            return Response({'error': 'User with this phone does not exist'}, status=status.HTTP_404_NOT_FOUND)
+
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+# @swagger_auto_schema(
+#     method='post',
+#     operation_summary="Email Login",
+#     operation_description="Login using email and password to get JWT tokens",
+#     request_body=UserLoginSerializer,
+#     responses={
+#         200: openapi.Response(
+#             description="Login successful",
+#             examples={
+#                 "application/json": {
+#                     "message": "Login successful",
+#                     "user": {
+#                         "id": 1,
+#                         "email": "user@example.com",
+#                         "phone": "+1234567890",
+#                         "name": "John Doe",
+#                         "user_type": 4
+#                     },
+#                     "tokens": {
+#                         "refresh": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
+#                         "access": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
+#                     }
+#                 }
+#             }
+#         ),
+#         401: openapi.Response(
+#             description="Invalid credentials",
+#             examples={
+#                 "application/json": {
+#                     "error": "Invalid credentials"
+#                 }
+#             }
+#         ),
+#         400: openapi.Response(
+#             description="Bad request - validation errors",
+#             examples={
+#                 "application/json": {
+#                     "email": ["This field is required."],
+#                     "password": ["This field is required."]
+#                 }
+#             }
+#         )
+#     },
+#     tags=['Authentication']
+# )
 # @api_view(['POST'])
 # @permission_classes([AllowAny])
 # def login_email(request):
@@ -181,43 +267,45 @@ def signup(request):
 #                     'access': str(refresh.access_token),
 #                 }
 #             }, status=status.HTTP_200_OK)
-@api_view(['POST'])
-@permission_classes([AllowAny])
-def login_email(request):
-    serializer = UserLoginSerializer(data=request.data)
-    if serializer.is_valid():
-        email = serializer.validated_data['email']
-        password = serializer.validated_data['password']
 
-        user = authenticate(username=email, password=password)
-        if user:
-            refresh = RefreshToken.for_user(user)
 
-            response = Response({
-                'message': 'Login successful',
-                'user': {
-                    'id': user.id,
-                    'email': user.email,
-                    'phone': user.phone,
-                    'name': f"{user.first_name} {user.last_name}",
-                    'user_type': user.get_user_type_display(),
-                    'sim_provider': user.sim_provider,
-                },
-                'access': str(refresh.access_token)
-            }, status=status.HTTP_200_OK)
+# @api_view(['POST'])
+# @permission_classes([AllowAny])
+# def login_email(request):
+#     serializer = UserLoginSerializer(data=request.data)
+#     if serializer.is_valid():
+#         email = serializer.validated_data['email']
+#         password = serializer.validated_data['password']
 
-            response.set_cookie(
-                key='refresh_token',
-                value=str(refresh),
-                httponly=True,
-                secure=True,
-                samesite='Lax'
-            )
+#         user = authenticate(username=email, password=password)
+#         if user:
+#             refresh = RefreshToken.for_user(user)
 
-            return response
-        else:
-            return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+#             response = Response({
+#                 'message': 'Login successful',
+#                 'user': {
+#                     'id': user.id,
+#                     'email': user.email,
+#                     'phone': user.phone,
+#                     'name': f"{user.first_name} {user.last_name}",
+#                     'user_type': user.get_user_type_display(),
+#                     'sim_provider': user.sim_provider,
+#                 },
+#                 'access': str(refresh.access_token)
+#             }, status=status.HTTP_200_OK)
+
+#             response.set_cookie(
+#                 key='refresh_token',
+#                 value=str(refresh),
+#                 httponly=True,
+#                 secure=True,
+#                 samesite='Lax'
+#             )
+
+#             return response
+#         else:
+#             return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+#     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 OTP_COOLDOWN_SECONDS = 120  # Cooldown of 1 minute
@@ -331,6 +419,51 @@ def generate_otp(request):
     },
     tags=['Authentication']
 )
+# @api_view(['POST'])
+# @permission_classes([AllowAny])
+# def verify_otp(request):
+#     serializer = OTPVerifySerializer(data=request.data)
+#     if serializer.is_valid():
+#         phone = serializer.validated_data['phone']
+#         code = serializer.validated_data['code']
+
+#         try:
+#             otp = OTP.objects.filter(
+#                 phone=phone, code=code).latest('created_at')
+
+#             # MODIFIED: Check if OTP is expired or already verified
+#             if not otp.is_valid():
+#                 return Response({'error': 'Invalid or expired OTP'}, status=status.HTTP_400_BAD_REQUEST)
+
+#             #  MODIFIED: Mark OTP as verified
+#             otp.is_verified = True
+#             otp.save()
+
+#             # Get user by phone
+#             user = User.objects.get(phone=phone)
+#             refresh = RefreshToken.for_user(user)
+
+#             return Response({
+#                 'message': 'OTP verified successfully',
+#                 'user': {
+#                     'id': user.id,
+#                     'email': user.email,
+#                     'phone': user.phone,
+#                     'name': f"{user.first_name} {user.last_name}",
+#                     'user_type': user.user_type,
+#                 },
+#                 'tokens': {
+#                     'refresh': str(refresh),
+#                     'access': str(refresh.access_token),
+#                 }
+#             }, status=status.HTTP_200_OK)
+
+#         except OTP.DoesNotExist:
+#             return Response({'error': 'Invalid OTP'}, status=status.HTTP_400_BAD_REQUEST)
+#         except User.DoesNotExist:
+#             return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+
+#     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def verify_otp(request):
@@ -343,32 +476,40 @@ def verify_otp(request):
             otp = OTP.objects.filter(
                 phone=phone, code=code).latest('created_at')
 
-            # MODIFIED: Check if OTP is expired or already verified
             if not otp.is_valid():
                 return Response({'error': 'Invalid or expired OTP'}, status=status.HTTP_400_BAD_REQUEST)
 
-            #  MODIFIED: Mark OTP as verified
             otp.is_verified = True
             otp.save()
 
-            # Get user by phone
             user = User.objects.get(phone=phone)
             refresh = RefreshToken.for_user(user)
 
-            return Response({
+            response = Response({
                 'message': 'OTP verified successfully',
                 'user': {
                     'id': user.id,
                     'email': user.email,
                     'phone': user.phone,
                     'name': f"{user.first_name} {user.last_name}",
-                    'user_type': user.user_type,
+                    'user_type': user.get_user_type_display(),
+                    'sim_provider': user.sim_provider,
                 },
                 'tokens': {
-                    'refresh': str(refresh),
                     'access': str(refresh.access_token),
                 }
             }, status=status.HTTP_200_OK)
+
+            # ✅ Set refresh token in HttpOnly cookie
+            response.set_cookie(
+                key='refresh_token',
+                value=str(refresh),
+                httponly=True,
+                secure=True,  # if using HTTPS
+                samesite='Strict'
+            )
+
+            return response
 
         except OTP.DoesNotExist:
             return Response({'error': 'Invalid OTP'}, status=status.HTTP_400_BAD_REQUEST)
