@@ -27,6 +27,8 @@ from wallet.models import *
 from plans.models import *
 from notifications.models import Notification
 from notifications.utils import generate_notification_content,is_notification_allowed
+from .utils import detect_sim_provider
+# from .serializers import SubAdminSerializer
 
 
 @swagger_auto_schema(
@@ -73,6 +75,9 @@ def signup(request):
     if serializer.is_valid():
         user = serializer.save()
         Wallet.objects.create(user=user) 
+        # ✅ Detect SIM provider after saving user
+        user.sim_provider = detect_sim_provider(user.phone)
+        user.save()
         if is_notification_allowed('recharge_success', 'in_app'):
             data = generate_notification_content(user, 'USER_REGISTERED')
             Notification.objects.create(
@@ -151,6 +156,31 @@ def signup(request):
     },
     tags=['Authentication']
 )
+# @api_view(['POST'])
+# @permission_classes([AllowAny])
+# def login_email(request):
+#     serializer = UserLoginSerializer(data=request.data)
+#     if serializer.is_valid():
+#         email = serializer.validated_data['email']
+#         password = serializer.validated_data['password']
+
+#         user = authenticate(username=email, password=password)
+#         if user:
+#             refresh = RefreshToken.for_user(user)
+#             return Response({
+#                 'message': 'Login successful',
+#                 'user': {
+#                     'id': user.id,
+#                     'email': user.email,
+#                     'phone': user.phone,
+#                     'name': f"{user.first_name} {user.last_name}",
+#                     'user_type': user.user_type,
+#                 },
+#                 'tokens': {
+#                     'refresh': str(refresh),
+#                     'access': str(refresh.access_token),
+#                 }
+#             }, status=status.HTTP_200_OK)
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def login_email(request):
@@ -162,20 +192,29 @@ def login_email(request):
         user = authenticate(username=email, password=password)
         if user:
             refresh = RefreshToken.for_user(user)
-            return Response({
+
+            response = Response({
                 'message': 'Login successful',
                 'user': {
                     'id': user.id,
                     'email': user.email,
                     'phone': user.phone,
                     'name': f"{user.first_name} {user.last_name}",
-                    'user_type': user.user_type,
+                    'user_type': user.get_user_type_display(),
+                    'sim_provider': user.sim_provider,
                 },
-                'tokens': {
-                    'refresh': str(refresh),
-                    'access': str(refresh.access_token),
-                }
+                'access': str(refresh.access_token)
             }, status=status.HTTP_200_OK)
+
+            response.set_cookie(
+                key='refresh_token',
+                value=str(refresh),
+                httponly=True,
+                secure=True,
+                samesite='Lax'
+            )
+
+            return response
         else:
             return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -745,6 +784,102 @@ def delete_user(request, user_id):
     },
     tags=['Admin - User Management']
 )
+
+
+
+
+# # Sub Admin List
+# @swagger_auto_schema(
+#     methods=['PUT', 'PATCH'],
+#     operation_summary="List all Sub-admins",
+#     tags=['Admin - Subadmin']
+# )
+# @api_view(['GET'])
+# @permission_classes([IsAuthenticated])
+# def list_subadmins(request):
+#     if request.user.user_type != 1:
+#         return Response({'error': 'Not authorized'}, status=status.HTTP_403_FORBIDDEN)
+
+#     subadmins = User.objects.filter(user_type__in=[2, 3])
+#     serializer = SubAdminSerializer(subadmins, many=True)
+#     return Response(serializer.data, status=status.HTTP_200_OK)
+
+# # Get Sub-admin Profile
+# @swagger_auto_schema(
+#     operation_summary="Get Sub-admin Profile",
+#     tags=['Admin - Subadmin']
+# )
+# @api_view(['GET'])
+# @permission_classes([IsAuthenticated])
+# def get_subadmin_profile(request, subadmin_id):
+#     if request.user.user_type != 1:
+#         return Response({'error': 'Not authorized'}, status=status.HTTP_403_FORBIDDEN)
+
+#     try:
+#         subadmin = User.objects.get(id=subadmin_id, user_type__in=[2, 3])
+#     except User.DoesNotExist:
+#         return Response({'error': 'Sub-admin not found'}, status=status.HTTP_404_NOT_FOUND)
+
+#     serializer = SubAdminSerializer(subadmin)
+#     return Response(serializer.data, status=status.HTTP_200_OK)
+
+# # Update Sub-admin Profile
+# @swagger_auto_schema(
+#     methods=['PUT', 'PATCH'],
+#     operation_summary="Update Subadmin Profile",
+#     request_body=SubAdminSerializer,
+#     tags=['Admin - Subadmin']
+# )
+# @api_view(['PUT', 'PATCH'])
+# @permission_classes([IsAuthenticated])
+# def update_subadmin_profile(request, subadmin_id):
+#     if request.user.user_type != 1:
+#         return Response({'error': 'Not authorized'}, status=status.HTTP_403_FORBIDDEN)
+
+#     try:
+#         subadmin = User.objects.get(id=subadmin_id, user_type__in=[2, 3])
+#     except User.DoesNotExist:
+#         return Response({'error': 'Sub-admin not found'}, status=status.HTTP_404_NOT_FOUND)
+
+#     serializer = SubAdminSerializer(subadmin, data=request.data, partial=True)
+#     if serializer.is_valid():
+#         serializer.save()
+#         return Response(serializer.data, status=status.HTTP_200_OK)
+#     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+# @swagger_auto_schema(
+#     method='get',
+#     operation_summary="Get Admin Profile",
+#     tags=['Admin - Profile']
+# )
+# @api_view(['GET'])
+# @permission_classes([IsAuthenticated])
+# def get_admin_profile(request):
+#     if request.user.user_type != 1:
+#         return Response({'error': 'Not authorized'}, status=status.HTTP_403_FORBIDDEN)
+
+#     serializer = AdminProfileSerializer(request.user)
+#     return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+# #  6️⃣ Edit Admin Profile
+# @swagger_auto_schema(
+#     methods=['put', 'patch'],
+#     operation_summary="Update Admin Profile",
+#     request_body=AdminProfileSerializer,
+#     tags=['Admin - Profile']
+# )
+# @api_view(['PUT', 'PATCH'])  
+# @permission_classes([IsAuthenticated])
+# def update_admin_profile(request):
+#     if request.user.user_type != 1:
+#         return Response({'error': 'Not authorized'}, status=status.HTTP_403_FORBIDDEN)
+
+#     serializer = AdminProfileSerializer(request.user, data=request.data, partial=True)
+#     if serializer.is_valid():
+#         serializer.save()
+#         return Response(serializer.data, status=status.HTTP_200_OK)
+#     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def reset_user_password(request, user_id):

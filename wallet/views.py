@@ -99,13 +99,25 @@ class WalletDetailView(generics.RetrieveAPIView):
     def get(self, request, *args, **kwargs):
         return super().get(request, *args, **kwargs)
     
+    # def get_queryset(self):
+    #     user = self.request.user
+    #     if user.is_admin:
+    #         return Wallet.objects.all().select_related('user')
+    #     else:
+    #         return Wallet.objects.filter(user=user)
     def get_queryset(self):
-        user = self.request.user
-        if user.is_admin:
-            return Wallet.objects.all().select_related('user')
-        else:
-            return Wallet.objects.filter(user=user)
+            # ✅ Short-circuit if docs are being generated
+            if getattr(self, 'swagger_fake_view', False):
+                return Wallet.objects.none()
 
+            user = self.request.user
+
+            if user.is_authenticated and getattr(user, 'is_admin', False):
+                return Wallet.objects.all().select_related('user')
+            elif user.is_authenticated:
+                return Wallet.objects.filter(user=user)
+            else:
+                return Wallet.objects.none()
 class WalletTransactionListView(generics.ListAPIView):
     """
     List Wallet Transactions

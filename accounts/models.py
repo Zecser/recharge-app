@@ -13,6 +13,7 @@ class UserType(IntEnum):
     CLIENT = 4
 
 
+
 class User(AbstractUser):
     USER_TYPE_CHOICES = [
         (UserType.ADMIN, 'Admin'),
@@ -20,12 +21,24 @@ class User(AbstractUser):
         (UserType.RETAILER, 'Retailer'),
         (UserType.CLIENT, 'Client'),
     ]
+    SIM_PROVIDER_CHOICES = [
+    ('Airtel', 'Airtel'),
+    ('Jio', 'Jio'),
+    ('Vi', 'Vi'),
+    ('BSNL', 'BSNL'),
+   
+    ]
 
     email = models.EmailField(unique=True)
     phone = models.CharField(max_length=15, unique=True)
     user_type = models.IntegerField(
         choices=USER_TYPE_CHOICES, default=UserType.CLIENT)
-
+    sim_provider = models.CharField(
+        max_length=20,
+        choices=SIM_PROVIDER_CHOICES,
+        null=True,
+        blank=True,
+    )
     @property
     def is_admin(self):
         return self.user_type == UserType.ADMIN
