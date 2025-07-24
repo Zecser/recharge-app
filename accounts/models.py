@@ -84,7 +84,6 @@ class OTP(models.Model):
 def user_directory_path(instance, filename):
     return f'profile_pictures/{filename}'
 
-
 class UserProfile(models.Model):
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
