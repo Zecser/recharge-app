@@ -152,7 +152,6 @@ def signup(request):
     tags=['Authentication']
 )
 
-
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def login_phone(request):
@@ -160,13 +159,25 @@ def login_phone(request):
     if serializer.is_valid():
         phone = serializer.validated_data.get('phone')
         password = serializer.validated_data['password']
-        # ✅ Detect SIM provider after saving user
-        user.sim_provider = detect_sim_provider(user.phone)
-        user.save()
+
         try:
             user = User.objects.get(phone=phone)
+
             if user.check_password(password):
+                # ✅ Detect SIM provider
+                sim_provider = detect_sim_provider(user.phone)
+                user.sim_provider = sim_provider
+                user.save()
+
                 refresh = RefreshToken.for_user(user)
+
+                sim_provider_data = None
+                if sim_provider:
+                    sim_provider_data = {
+                        'id': sim_provider.id,
+                        'title': sim_provider.title,
+                        'is_active': sim_provider.is_active
+                    }
 
                 response = Response({
                     'message': 'Login successful',
@@ -176,7 +187,7 @@ def login_phone(request):
                         'phone': user.phone,
                         'name': f"{user.first_name} {user.last_name}",
                         'user_type': user.get_user_type_display(),
-                        'sim_provider': user.sim_provider,
+                        'sim_provider': sim_provider_data,
                     },
                     'access': str(refresh.access_token)
                 }, status=status.HTTP_200_OK)
@@ -190,6 +201,7 @@ def login_phone(request):
                 )
 
                 return response
+
             else:
                 return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
 
