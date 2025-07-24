@@ -19,7 +19,7 @@ from .models import User, OTP, UserType, UserProfile
 from .serializers import (
     UserSignupSerializer, UserLoginSerializer, OTPGenerateSerializer,
     OTPVerifySerializer, UserSerializer, CreateUserSerializer,
-    UpdateUserSerializer, PasswordResetSerializer, UserProfileSerializer
+    UpdateUserSerializer, PasswordResetSerializer, UserProfileSerializer,AdminProfileUpdateSerializer
 )
 import random
 import string
@@ -28,7 +28,133 @@ from plans.models import *
 from notifications.models import Notification
 from notifications.utils import generate_notification_content,is_notification_allowed
 from .utils import detect_sim_provider
+from .permissions import IsAdminUserType
 # from .serializers import SubAdminSerializer
+
+
+
+
+@swagger_auto_schema(
+    method='get',
+    operation_summary="Get Admin Profiles",
+    operation_description="Returns a list of all users with user_type=Admin",
+    responses={
+        200: openapi.Response(
+            description="List of admin profiles",
+            examples={
+                "application/json": [
+                    {
+                        "id": 1,
+                        "first_name": "John",
+                        "last_name": "Doe",
+                        "email": "admin1@example.com",
+                        "phone": "+1234567890",
+                        "user_type": "Admin"
+                    },
+                    {
+                        "id": 2,
+                        "first_name": "Jane",
+                        "last_name": "Smith",
+                        "email": "admin2@example.com",
+                        "phone": "+9876543210",
+                        "user_type": "Admin"
+                    }
+                ]
+            }
+        ),
+        401: openapi.Response(
+            description="Unauthorized",
+            examples={
+                "application/json": {
+                    "detail": "Authentication credentials were not provided."
+                }
+            }
+        )
+    },
+    tags=['Admin']
+)
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_admin_profiles(request):
+    admins = User.objects.filter(user_type=UserType.ADMIN)
+    serializer = UserSerializer(admins, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+@swagger_auto_schema(
+    method='put',
+    operation_summary="Update Admin Profile",
+    operation_description="Update the logged-in admin's profile details.",
+    request_body=AdminProfileUpdateSerializer,
+    responses={
+        200: openapi.Response(
+            description="Profile updated successfully",
+            examples={
+                "application/json": {
+                    "message": "Profile updated successfully",
+                    "data": {
+                        "first_name": "John",
+                        "last_name": "Doe",
+                        "phone": "+911234567890",
+                        "email": "admin@example.com"
+                    }
+                }
+            }
+        ),
+        400: "Validation error",
+        403: "Not allowed",
+    },
+    tags=['Admin']
+)
+@api_view(['PUT'])
+@permission_classes([IsAuthenticated])
+def update_admin_profile(request):
+    user = request.user
+
+    if user.user_type != UserType.ADMIN:
+        return Response({'error': 'Only admins can update this profile'}, status=status.HTTP_403_FORBIDDEN)
+
+    serializer = AdminProfileUpdateSerializer(user, data=request.data, partial=True)
+    if serializer.is_valid():
+        serializer.save()
+        return Response({'message': 'Profile updated successfully', 'data': serializer.data})
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+@swagger_auto_schema(
+    method='get',
+    operation_summary="List Sub-Admins",
+    operation_description="List all users who are Distributor or Retailer",
+    responses={200: UserSerializer(many=True)}
+)
+# ✅ List Sub-Admins
+@api_view(['GET'])
+@permission_classes([IsAuthenticated, IsAdminUserType])
+def list_subadmins(request):
+    subadmins = User.objects.filter(user_type__in=[UserType.DISTRIBUTOR, UserType.RETAILER])
+    serializer = UserSerializer(subadmins, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+# ✅ Get Sub-Admin
+@api_view(['GET'])
+@permission_classes([IsAuthenticated, IsAdminUserType])
+def get_subadmin(request, subadmin_id):
+    subadmin = get_object_or_404(
+        User, id=subadmin_id, user_type__in=[UserType.DISTRIBUTOR, UserType.RETAILER]
+    )
+    serializer = UserSerializer(subadmin)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+# ✅ Update Sub-Admin
+@api_view(['PUT'])
+@permission_classes([IsAuthenticated, IsAdminUserType])
+def update_subadmin(request, subadmin_id):
+    subadmin = get_object_or_404(
+        User, id=subadmin_id, user_type__in=[UserType.DISTRIBUTOR, UserType.RETAILER]
+    )
+    serializer = UserSerializer(subadmin, data=request.data, partial=True)
+    if serializer.is_valid():
+        serializer.save()
+        return Response({'message': 'Sub-Admin updated.', 'data': serializer.data}, status=status.HTTP_200_OK)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 
 @swagger_auto_schema(
@@ -209,51 +335,51 @@ def signup(request):
 #             return Response({'error': 'User with this phone does not exist'}, status=status.HTTP_404_NOT_FOUND)
 
 #     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-# @swagger_auto_schema(
-#     method='post',
-#     operation_summary="Email Login",
-#     operation_description="Login using email and password to get JWT tokens",
-#     request_body=UserLoginSerializer,
-#     responses={
-#         200: openapi.Response(
-#             description="Login successful",
-#             examples={
-#                 "application/json": {
-#                     "message": "Login successful",
-#                     "user": {
-#                         "id": 1,
-#                         "email": "user@example.com",
-#                         "phone": "+1234567890",
-#                         "name": "John Doe",
-#                         "user_type": 4
-#                     },
-#                     "tokens": {
-#                         "refresh": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
-#                         "access": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
-#                     }
-#                 }
-#             }
-#         ),
-#         401: openapi.Response(
-#             description="Invalid credentials",
-#             examples={
-#                 "application/json": {
-#                     "error": "Invalid credentials"
-#                 }
-#             }
-#         ),
-#         400: openapi.Response(
-#             description="Bad request - validation errors",
-#             examples={
-#                 "application/json": {
-#                     "email": ["This field is required."],
-#                     "password": ["This field is required."]
-#                 }
-#             }
-#         )
-#     },
-#     tags=['Authentication']
-# )
+@swagger_auto_schema(
+    method='post',
+    operation_summary="Email Login",
+    operation_description="Login using email and password to get JWT tokens",
+    request_body=UserLoginSerializer,
+    responses={
+        200: openapi.Response(
+            description="Login successful",
+            examples={
+                "application/json": {
+                    "message": "Login successful",
+                    "user": {
+                        "id": 1,
+                        "email": "user@example.com",
+                        "phone": "+1234567890",
+                        "name": "John Doe",
+                        "user_type": 4
+                    },
+                    "tokens": {
+                        "refresh": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
+                        "access": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
+                    }
+                }
+            }
+        ),
+        401: openapi.Response(
+            description="Invalid credentials",
+            examples={
+                "application/json": {
+                    "error": "Invalid credentials"
+                }
+            }
+        ),
+        400: openapi.Response(
+            description="Bad request - validation errors",
+            examples={
+                "application/json": {
+                    "email": ["This field is required."],
+                    "password": ["This field is required."]
+                }
+            }
+        )
+    },
+    tags=['Authentication']
+)
 # @api_view(['POST'])
 # @permission_classes([AllowAny])
 # def login_email(request):

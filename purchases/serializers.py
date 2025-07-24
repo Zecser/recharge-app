@@ -41,24 +41,51 @@ class PurchasePlanSerializer(serializers.Serializer):
             raise serializers.ValidationError("Plan not found or not active")
 
 from datetime import timedelta, date
-
 class PurchaseHistorySerializer(serializers.ModelSerializer):
-    plan_title = serializers.CharField(source='plan.title', read_only=True)
-    provider_name = serializers.CharField(source='plan.provider.title', read_only=True)
-    plan_validity = serializers.IntegerField(source='plan.validity', read_only=True)
-    validity_left = serializers.SerializerMethodField()  # 👈 NEW FIELD
+    user_name = serializers.SerializerMethodField()
+    date = serializers.SerializerMethodField()
+    time = serializers.SerializerMethodField()
 
     class Meta:
         model = PlanPurchase
         fields = [
-            'id', 'plan_title', 'provider_name', 'plan_validity', 'amount', 
-            'payment_status', 'transaction_id', 'phone_number', 'payment_method',
-            'created_at', 'completed_at', 'validity_left'  # 👈 ADD HERE
+            'id',
+            'user_name',
+            'phone_number',
+            'date',
+            'time',
+            'payment_status',
+            'amount',
         ]
 
-    def get_validity_left(self, obj):
-        if obj.completed_at and obj.plan.validity:
-            expiry_date = obj.completed_at.date() + timedelta(days=obj.plan.validity)
-            remaining_days = (expiry_date - date.today()).days
-            return max(0, remaining_days)  # don’t return negative values
-        return None
+    def get_user_name(self, obj):
+        user = obj.user
+        if user.first_name or user.last_name:
+            return f"{user.first_name} {user.last_name}".strip()
+        return user.email.split('@')[0]
+
+    def get_date(self, obj):
+        return obj.created_at.date()
+
+    def get_time(self, obj):
+        return obj.created_at.time().strftime("%H:%M:%S")
+# class PurchaseHistorySerializer(serializers.ModelSerializer):
+#     plan_title = serializers.CharField(source='plan.title', read_only=True)
+#     provider_name = serializers.CharField(source='plan.provider.title', read_only=True)
+#     plan_validity = serializers.IntegerField(source='plan.validity', read_only=True)
+#     validity_left = serializers.SerializerMethodField()  # 👈 NEW FIELD
+
+#     class Meta:
+#         model = PlanPurchase
+#         fields = [
+#             'id', 'plan_title', 'provider_name', 'plan_validity', 'amount', 
+#             'payment_status', 'transaction_id', 'phone_number', 'payment_method',
+#             'created_at', 'completed_at', 'validity_left'  # 👈 ADD HERE
+#         ]
+
+#     def get_validity_left(self, obj):
+#         if obj.completed_at and obj.plan.validity:
+#             expiry_date = obj.completed_at.date() + timedelta(days=obj.plan.validity)
+#             remaining_days = (expiry_date - date.today()).days
+#             return max(0, remaining_days)  # don’t return negative values
+#         return None

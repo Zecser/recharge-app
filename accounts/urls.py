@@ -1,9 +1,16 @@
 from django.urls import path
 from . import views
 from rest_framework_simplejwt.views import TokenRefreshView
-from .views import  user_profile_create_or_update
+from .views import  user_profile_create_or_update,get_admin_profiles,update_admin_profile,list_subadmins, get_subadmin, update_subadmin
 
 urlpatterns = [
+    
+    path('admins/', get_admin_profiles, name='get-admin-profiles'),
+    path('profile/update/', update_admin_profile, name='update-admin-profile'),
+    path('subadmins/', list_subadmins, name='list-subadmins'),
+    path('subadmins/<int:subadmin_id>/', get_subadmin, name='get-subadmin'),
+    path('subadmins/<int:subadmin_id>/update/', update_subadmin, name='update-subadmin'),
+
     path('signup/', views.signup, name='signup'),
     path('login/email/', views.login_email, name='login_email'),
 #     path('login/phone/', views.login_phone, name='login_phone'),

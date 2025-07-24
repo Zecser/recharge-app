@@ -5,6 +5,21 @@ from .models import User, OTP, UserType, UserProfile
 import re
 
 
+
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id', 'first_name', 'last_name', 'email', 'phone', 'user_type']
+class AdminProfileUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['first_name', 'last_name', 'phone', 'email']
+        read_only_fields = ['email']  # often email is not editable
+
+
+
+
+
 class UserSignupSerializer(serializers.ModelSerializer):
     password = serializers.CharField(
         write_only=True, validators=[validate_password])
@@ -58,14 +73,11 @@ class UserSignupSerializer(serializers.ModelSerializer):
         return user
 
 
-# class UserLoginSerializer(serializers.Serializer):
-#     email = serializers.EmailField()
-#     password = serializers.CharField()
-
 class UserLoginSerializer(serializers.Serializer):
-    phone = serializers.CharField()
+    email = serializers.EmailField()
     password = serializers.CharField()
-    
+
+
 class OTPGenerateSerializer(serializers.Serializer):
     phone = serializers.CharField(max_length=15)
 
