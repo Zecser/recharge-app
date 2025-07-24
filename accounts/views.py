@@ -75,9 +75,7 @@ def signup(request):
     if serializer.is_valid():
         user = serializer.save()
         Wallet.objects.create(user=user) 
-        # ✅ Detect SIM provider after saving user
-        user.sim_provider = detect_sim_provider(user.phone)
-        user.save()
+        
         if is_notification_allowed('recharge_success', 'in_app'):
             data = generate_notification_content(user, 'USER_REGISTERED')
             Notification.objects.create(
@@ -162,7 +160,9 @@ def login_phone(request):
     if serializer.is_valid():
         phone = serializer.validated_data.get('phone')
         password = serializer.validated_data['password']
-
+        # ✅ Detect SIM provider after saving user
+        user.sim_provider = detect_sim_provider(user.phone)
+        user.save()
         try:
             user = User.objects.get(phone=phone)
             if user.check_password(password):
