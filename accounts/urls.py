@@ -5,8 +5,8 @@ from .views import  user_profile_create_or_update
 
 urlpatterns = [
     path('signup/', views.signup, name='signup'),
-#     path('login/email/', views.login_email, name='login_email'),
-    path('login/phone/', views.login_phone, name='login_phone'),
+    path('login/email/', views.login_email, name='login_email'),
+#     path('login/phone/', views.login_phone, name='login_phone'),
     path('otp/generate/', views.generate_otp, name='generate_otp'),
     path('otp/verify/', views.verify_otp, name='verify_otp'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),

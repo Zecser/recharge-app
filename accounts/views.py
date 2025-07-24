@@ -109,106 +109,106 @@ def signup(request):
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-@swagger_auto_schema(
-    method='post',
-    operation_summary="Phone Login",
-    operation_description="Login using phone number and password to get JWT tokens",
-    request_body=UserLoginSerializer,
-    responses={
-        200: openapi.Response(
-            description="Login successful",
-            examples={
-                "application/json": {
-                    "message": "Login successful",
-                    "user": {
-                        "id": 1,
-                        "email": "user@example.com",
-                        "phone": "+1234567890",
-                        "name": "John Doe",
-                        "user_type": 4
-                    },
-                    "access": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
-                }
-            }
-        ),
-        401: openapi.Response(
-            description="Invalid credentials",
-            examples={
-                "application/json": {
-                    "error": "Invalid credentials"
-                }
-            }
-        ),
-        400: openapi.Response(
-            description="Bad request - validation errors",
-            examples={
-                "application/json": {
-                    "phone": ["This field is required."],
-                    "password": ["This field is required."]
-                }
-            }
-        )
-    },
-    tags=['Authentication']
-)
+# @swagger_auto_schema(
+#     method='post',
+#     operation_summary="Phone Login",
+#     operation_description="Login using phone number and password to get JWT tokens",
+#     request_body=UserLoginSerializer,
+#     responses={
+#         200: openapi.Response(
+#             description="Login successful",
+#             examples={
+#                 "application/json": {
+#                     "message": "Login successful",
+#                     "user": {
+#                         "id": 1,
+#                         "email": "user@example.com",
+#                         "phone": "+1234567890",
+#                         "name": "John Doe",
+#                         "user_type": 4
+#                     },
+#                     "access": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
+#                 }
+#             }
+#         ),
+#         401: openapi.Response(
+#             description="Invalid credentials",
+#             examples={
+#                 "application/json": {
+#                     "error": "Invalid credentials"
+#                 }
+#             }
+#         ),
+#         400: openapi.Response(
+#             description="Bad request - validation errors",
+#             examples={
+#                 "application/json": {
+#                     "phone": ["This field is required."],
+#                     "password": ["This field is required."]
+#                 }
+#             }
+#         )
+#     },
+#     tags=['Authentication']
+# )
 
-@api_view(['POST'])
-@permission_classes([AllowAny])
-def login_phone(request):
-    serializer = UserLoginSerializer(data=request.data)
-    if serializer.is_valid():
-        phone = serializer.validated_data.get('phone')
-        password = serializer.validated_data['password']
+# @api_view(['POST'])
+# @permission_classes([AllowAny])
+# def login_phone(request):
+#     serializer = UserLoginSerializer(data=request.data)
+#     if serializer.is_valid():
+#         phone = serializer.validated_data.get('phone')
+#         password = serializer.validated_data['password']
 
-        try:
-            user = User.objects.get(phone=phone)
+#         try:
+#             user = User.objects.get(phone=phone)
 
-            if user.check_password(password):
-                # ✅ Detect SIM provider
-                sim_provider = detect_sim_provider(user.phone)
-                user.sim_provider = sim_provider
-                user.save()
+#             if user.check_password(password):
+#                 # ✅ Detect SIM provider
+#                 sim_provider = detect_sim_provider(user.phone)
+#                 user.sim_provider = sim_provider
+#                 user.save()
 
-                refresh = RefreshToken.for_user(user)
+#                 refresh = RefreshToken.for_user(user)
 
-                sim_provider_data = None
-                if sim_provider:
-                    sim_provider_data = {
-                        'id': sim_provider.id,
-                        'title': sim_provider.title,
-                        'is_active': sim_provider.is_active
-                    }
+#                 sim_provider_data = None
+#                 if sim_provider:
+#                     sim_provider_data = {
+#                         'id': sim_provider.id,
+#                         'title': sim_provider.title,
+#                         'is_active': sim_provider.is_active
+#                     }
 
-                response = Response({
-                    'message': 'Login successful',
-                    'user': {
-                        'id': user.id,
-                        'email': user.email,
-                        'phone': user.phone,
-                        'name': f"{user.first_name} {user.last_name}",
-                        'user_type': user.get_user_type_display(),
-                        'sim_provider': sim_provider_data,
-                    },
-                    'access': str(refresh.access_token)
-                }, status=status.HTTP_200_OK)
+#                 response = Response({
+#                     'message': 'Login successful',
+#                     'user': {
+#                         'id': user.id,
+#                         'email': user.email,
+#                         'phone': user.phone,
+#                         'name': f"{user.first_name} {user.last_name}",
+#                         'user_type': user.get_user_type_display(),
+#                         'sim_provider': sim_provider_data,
+#                     },
+#                     'access': str(refresh.access_token)
+#                 }, status=status.HTTP_200_OK)
 
-                response.set_cookie(
-                    key='refresh_token',
-                    value=str(refresh),
-                    httponly=True,
-                    secure=True,
-                    samesite='Lax'
-                )
+#                 response.set_cookie(
+#                     key='refresh_token',
+#                     value=str(refresh),
+#                     httponly=True,
+#                     secure=True,
+#                     samesite='Lax'
+#                 )
 
-                return response
+#                 return response
 
-            else:
-                return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+#             else:
+#                 return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
 
-        except User.DoesNotExist:
-            return Response({'error': 'User with this phone does not exist'}, status=status.HTTP_404_NOT_FOUND)
+#         except User.DoesNotExist:
+#             return Response({'error': 'User with this phone does not exist'}, status=status.HTTP_404_NOT_FOUND)
 
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+#     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 # @swagger_auto_schema(
 #     method='post',
 #     operation_summary="Email Login",
@@ -281,43 +281,43 @@ def login_phone(request):
 #             }, status=status.HTTP_200_OK)
 
 
-# @api_view(['POST'])
-# @permission_classes([AllowAny])
-# def login_email(request):
-#     serializer = UserLoginSerializer(data=request.data)
-#     if serializer.is_valid():
-#         email = serializer.validated_data['email']
-#         password = serializer.validated_data['password']
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def login_email(request):
+    serializer = UserLoginSerializer(data=request.data)
+    if serializer.is_valid():
+        email = serializer.validated_data['email']
+        password = serializer.validated_data['password']
 
-#         user = authenticate(username=email, password=password)
-#         if user:
-#             refresh = RefreshToken.for_user(user)
+        user = authenticate(username=email, password=password)
+        if user:
+            refresh = RefreshToken.for_user(user)
 
-#             response = Response({
-#                 'message': 'Login successful',
-#                 'user': {
-#                     'id': user.id,
-#                     'email': user.email,
-#                     'phone': user.phone,
-#                     'name': f"{user.first_name} {user.last_name}",
-#                     'user_type': user.get_user_type_display(),
-#                     'sim_provider': user.sim_provider,
-#                 },
-#                 'access': str(refresh.access_token)
-#             }, status=status.HTTP_200_OK)
+            response = Response({
+                'message': 'Login successful',
+                'user': {
+                    'id': user.id,
+                    'email': user.email,
+                    'phone': user.phone,
+                    'name': f"{user.first_name} {user.last_name}",
+                    'user_type': user.get_user_type_display(),
+                    'sim_provider': user.sim_provider,
+                },
+                'access': str(refresh.access_token)
+            }, status=status.HTTP_200_OK)
 
-#             response.set_cookie(
-#                 key='refresh_token',
-#                 value=str(refresh),
-#                 httponly=True,
-#                 secure=True,
-#                 samesite='Lax'
-#             )
+            response.set_cookie(
+                key='refresh_token',
+                value=str(refresh),
+                httponly=True,
+                secure=True,
+                samesite='Lax'
+            )
 
-#             return response
-#         else:
-#             return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
-#     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return response
+        else:
+            return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 OTP_COOLDOWN_SECONDS = 120  # Cooldown of 1 minute
