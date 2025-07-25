@@ -4,7 +4,7 @@ from django.utils import timezone
 from datetime import timedelta
 from enum import IntEnum
 from django.conf import settings
-
+from plans.models import Provider
 
 class UserType(IntEnum):
     ADMIN = 1
@@ -33,12 +33,13 @@ class User(AbstractUser):
     phone = models.CharField(max_length=15, unique=True)
     user_type = models.IntegerField(
         choices=USER_TYPE_CHOICES, default=UserType.CLIENT)
-    sim_provider = models.CharField(
-        max_length=20,
-        choices=SIM_PROVIDER_CHOICES,
-        null=True,
-        blank=True,
-    )
+    sim_provider = models.ForeignKey(
+    Provider,
+    on_delete=models.SET_NULL,
+    null=True,
+    blank=True
+)
+
     @property
     def is_admin(self):
         return self.user_type == UserType.ADMIN

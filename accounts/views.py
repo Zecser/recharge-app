@@ -30,10 +30,18 @@ from notifications.utils import generate_notification_content,is_notification_al
 from .utils import detect_sim_provider
 from .permissions import IsAdminUserType, IsAdminUserOnly
 # from .serializers import SubAdminSerializer
+from plans.serializers import ProviderSerializer
 
 
 
-
+def get_provider_from_phone(phone_number):
+    # Dummy logic - you decide your rules!
+    if phone_number.startswith("98") or phone_number.startswith("99"):
+        return Provider.objects.get_or_create(id=2, defaults={"title": "Jio"})[0]
+    elif phone_number.startswith("97") or phone_number.startswith("96"):
+        return Provider.objects.get_or_create(id=1, defaults={"title": "Airtel"})[0]
+    else:
+        return None
 @swagger_auto_schema(
     method='get',
     operation_summary="Get Admin Profiles",
@@ -210,7 +218,14 @@ def signup(request):
                 title=data['title'],
                 message=data['message'],
                 notification_type='USER_REGISTERED'
-)
+)    
+             # ✅ NEW: Detect SIM provider & set FK
+        provider_name = detect_sim_provider(user.phone)
+        if provider_name:
+            provider = Provider.objects.filter(title=provider_name).first()
+            if provider:
+                user.sim_provider = provider
+                user.save()
 
         refresh = RefreshToken.for_user(user)
         plans = Plans.objects.filter(is_active=True).values(
@@ -223,7 +238,10 @@ def signup(request):
                 'email': user.email,
                 'phone': user.phone,
                 'name': f"{user.first_name} {user.last_name}",
-                'user_type': user.user_type,},
+                'user_type': user.user_type,
+                'sim_provider': provider_name if provider_name else None,  # ✅ Return it
+                },
+
                   'wallet': {
                 'balance': "0.00",
             },
@@ -417,9 +435,17 @@ def login_email(request):
         password = serializer.validated_data['password']
 
         user = authenticate(username=email, password=password)
+       
         if user:
             refresh = RefreshToken.for_user(user)
 
+            sim_provider_data = None
+            
+            if user.sim_provider:
+                sim_provider_data = ProviderSerializer(user.sim_provider).data
+
+
+            print(sim_provider_data)
             response = Response({
                 'message': 'Login successful',
                 'user': {
@@ -428,7 +454,7 @@ def login_email(request):
                     'phone': user.phone,
                     'name': f"{user.first_name} {user.last_name}",
                     'user_type': user.get_user_type_display(),
-                    'sim_provider': user.sim_provider,
+                    'sim_provider': sim_provider_data,
                 },
                 'access': str(refresh.access_token)
             }, status=status.HTTP_200_OK)
