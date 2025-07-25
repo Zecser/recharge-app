@@ -231,7 +231,7 @@ def signup(request):
         plans = Plans.objects.filter(is_active=True).values(
             'id', 'title', 'description', 'validity', 'amount', 'identifier'
         )
-        return Response({
+        response = Response({
             'message': 'User created successfully',
             'user': {
                 'id': user.id,
@@ -247,10 +247,19 @@ def signup(request):
             },
              'plans': list(plans),
             'tokens': {
-                'refresh': str(refresh),
+                
                 'access': str(refresh.access_token),
             }
         }, status=status.HTTP_201_CREATED)
+        response.set_cookie(
+            key='refresh_token',
+            value=str(refresh),
+            httponly=True,
+            secure=True,  # use False for local dev if needed
+            samesite='Lax'
+        )
+        return response
+        
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -434,7 +443,8 @@ def login_email(request):
         email = serializer.validated_data['email']
         password = serializer.validated_data['password']
 
-        user = authenticate(username=email, password=password)
+        user = authenticate(request, username=email, password=password)
+
        
         if user:
             refresh = RefreshToken.for_user(user)

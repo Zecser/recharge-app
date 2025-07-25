@@ -27,7 +27,10 @@ DEBUG = config('DEBUG', default=True, cast=bool)
 
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=Csv())
 
-
+AUTHENTICATION_BACKENDS = [
+    'accounts.backends.EmailBackend',  # ✅ your custom backend
+    'django.contrib.auth.backends.ModelBackend',  # fallback
+]
 # Application definition
 
 INSTALLED_APPS = [
@@ -97,21 +100,34 @@ if DEBUG:
     }
 else:
     # Production database - PostgreSQL
+    # DATABASES = {
+    #     'default': {
+    #         'ENGINE': 'django.db.backends.postgresql',
+    #         'NAME': config('DB_NAME', default='recharge_backend'),
+    #         'USER': config('DB_USER', default='recharge_user'),
+    #         'PASSWORD': config('DB_PASSWORD'),
+    #         'HOST': config('DB_HOST', default='localhost'),
+    #         'PORT': config('DB_PORT', default='5432'),
+    #         'OPTIONS': {
+    #             'charset': 'utf8',
+    #         },
+    #         'CONN_MAX_AGE': 60,
+    #     }
+    # }
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql',
-            'NAME': config('DB_NAME', default='recharge_backend'),
-            'USER': config('DB_USER', default='recharge_user'),
+            'NAME': config('DB_NAME'),
+            'USER': config('DB_USER'),
             'PASSWORD': config('DB_PASSWORD'),
-            'HOST': config('DB_HOST', default='localhost'),
+            'HOST': config('DB_HOST'),
             'PORT': config('DB_PORT', default='5432'),
             'OPTIONS': {
-                'charset': 'utf8',
+                'sslmode': 'require',
             },
             'CONN_MAX_AGE': 60,
         }
     }
-
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
