@@ -82,7 +82,7 @@ WSGI_APPLICATION = 'config.wsgi.application'
 
 # CORS settings
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",  # Add your frontend's origin
+    "http://localhost:5173", "https://rechargewebsite.netlify.app" # Add your frontend's origin
 ]
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
