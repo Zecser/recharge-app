@@ -14,7 +14,7 @@ class JWTAuthenticationMiddleware(MiddlewareMixin):
         skip_paths = [
             '/api/auth/admins/',
             '/api/auth/signup/',
-            # '/api/auth/login/email/',
+            #/api/auth/login/email/',
             '/api/auth/login/phone/',
             '/api/auth/otp/generate/',
             '/api/auth/otp/verify/',

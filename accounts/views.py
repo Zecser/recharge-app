@@ -28,7 +28,7 @@ from plans.models import *
 from notifications.models import Notification
 from notifications.utils import generate_notification_content,is_notification_allowed
 from .utils import detect_sim_provider
-from .permissions import IsAdminUserType
+from .permissions import IsAdminUserType, IsAdminUserOnly
 # from .serializers import SubAdminSerializer
 
 
@@ -74,8 +74,9 @@ from .permissions import IsAdminUserType
     tags=['Admin']
 )
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated,IsAdminUserOnly])
 def get_admin_profiles(request):
+    
     admins = User.objects.filter(user_type=UserType.ADMIN)
     serializer = UserSerializer(admins, many=True)
     return Response(serializer.data, status=status.HTTP_200_OK)
