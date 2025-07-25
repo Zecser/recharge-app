@@ -442,10 +442,11 @@ def login_email(request):
     if serializer.is_valid():
         email = serializer.validated_data['email']
         password = serializer.validated_data['password']
+        
 
         user = authenticate(request, email=email, password=password)
 
-
+        print("Trying to authenticate:", email)
        
         if user:
             refresh = RefreshToken.for_user(user)
