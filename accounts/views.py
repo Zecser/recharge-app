@@ -443,7 +443,8 @@ def login_email(request):
         email = serializer.validated_data['email']
         password = serializer.validated_data['password']
 
-        user = authenticate(request, username=email, password=password)
+        user = authenticate(request, email=email, password=password)
+
 
        
         if user:
