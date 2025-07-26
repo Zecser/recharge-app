@@ -971,6 +971,7 @@ def create_user(request):
 
     serializer = CreateUserSerializer(data=request.data)
     if serializer.is_valid():
+        
         user = serializer.save()
         # Reload user with wallet to get accurate serialized data
         user_with_wallet = User.objects.select_related(
