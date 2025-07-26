@@ -696,6 +696,7 @@ def generate_otp(request):
 #             return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
 
 #     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def verify_otp(request):
@@ -705,8 +706,7 @@ def verify_otp(request):
         code = serializer.validated_data['code']
 
         try:
-            otp = OTP.objects.filter(
-                phone=phone, code=code).latest('created_at')
+            otp = OTP.objects.filter(phone=phone, code=code).latest('created_at')
 
             if not otp.is_valid():
                 return Response({'error': 'Invalid or expired OTP'}, status=status.HTTP_400_BAD_REQUEST)
@@ -723,21 +723,19 @@ def verify_otp(request):
                     'id': user.id,
                     'email': user.email,
                     'phone': user.phone,
-                    'name': f"{user.first_name} {user.last_name}",
-                    'user_type': user.get_user_type_display(),
-                    'sim_provider': user.sim_provider,
+                    'user_type': getattr(user, 'get_user_type_display', lambda: user.user_type)(),
+                    'sim_provider': getattr(user.sim_provider, 'title', None),
                 },
                 'tokens': {
                     'access': str(refresh.access_token),
                 }
             }, status=status.HTTP_200_OK)
 
-            # ✅ Set refresh token in HttpOnly cookie
             response.set_cookie(
                 key='refresh_token',
                 value=str(refresh),
                 httponly=True,
-                secure=True,  # if using HTTPS
+                secure=True,  # Set to False for localhost testing if needed
                 samesite='Strict'
             )
 
@@ -749,6 +747,60 @@ def verify_otp(request):
             return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
 
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+# old
+# @api_view(['POST'])
+# @permission_classes([AllowAny])
+# def verify_otp(request):
+#     serializer = OTPVerifySerializer(data=request.data)
+#     if serializer.is_valid():
+#         phone = serializer.validated_data['phone']
+#         code = serializer.validated_data['code']
+
+#         try:
+#             otp = OTP.objects.filter(
+#                 phone=phone, code=code).latest('created_at')
+
+#             if not otp.is_valid():
+#                 return Response({'error': 'Invalid or expired OTP'}, status=status.HTTP_400_BAD_REQUEST)
+
+#             otp.is_verified = True
+#             otp.save()
+
+#             user = User.objects.get(phone=phone)
+#             refresh = RefreshToken.for_user(user)
+
+#             response = Response({
+#                 'message': 'OTP verified successfully',
+#                 'user': {
+#                     'id': user.id,
+#                     'email': user.email,
+#                     'phone': user.phone,
+#                     # 'name': f"{user.first_name} {user.last_name}",
+#                     'user_type': user.get_user_type_display(),
+#                     'sim_provider': user.sim_provider,
+#                 },
+#                 'tokens': {
+#                     'access': str(refresh.access_token),
+#                 }
+#             }, status=status.HTTP_200_OK)
+
+#             # ✅ Set refresh token in HttpOnly cookie
+#             response.set_cookie(
+#                 key='refresh_token',
+#                 value=str(refresh),
+#                 httponly=True,
+#                 secure=True,  # if using HTTPS
+#                 samesite='Strict'
+#             )
+
+#             return response
+
+#         except OTP.DoesNotExist:
+#             return Response({'error': 'Invalid OTP'}, status=status.HTTP_400_BAD_REQUEST)
+#         except User.DoesNotExist:
+#             return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+
+#     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 # # view for user_profile
 
