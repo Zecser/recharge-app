@@ -63,7 +63,7 @@ class UserSignupSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         validated_data.pop('password_confirm')
         password = validated_data.pop('password')
-
+        
         # Set username same as email
         validated_data['username'] = validated_data['email']
 

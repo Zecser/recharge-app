@@ -445,6 +445,7 @@ def login_email(request):
         
 
         user = authenticate(request, email=email, password=password)
+
         if not user:
             user = authenticate(request, username=email, password=password)
 
