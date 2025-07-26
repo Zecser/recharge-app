@@ -433,59 +433,111 @@ def signup(request):
 #                     'access': str(refresh.access_token),
 #                 }
 #             }, status=status.HTTP_200_OK)
-
-
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def login_email(request):
-    serializer = UserLoginSerializer(data=request.data)
-    if serializer.is_valid():
-        email = serializer.validated_data['email']
-        password = serializer.validated_data['password']
+    try:
+        serializer = UserLoginSerializer(data=request.data)
+        if serializer.is_valid():
+            email = serializer.validated_data['email']
+            password = serializer.validated_data['password']
+            user = authenticate(request, email=email, password=password) or authenticate(request, username=email, password=password)
+            
+            print("Trying to authenticate:", email)
+            if user:
+                refresh = RefreshToken.for_user(user)
+                sim_provider_data = None
+                try:
+                    if hasattr(user, 'sim_provider') and user.sim_provider:
+                        sim_provider_data = ProviderSerializer(user.sim_provider).data
+                except Exception as e:
+                    print("Sim provider error:", e)
+
+                response = Response({
+                    'message': 'Login successful',
+                    'user': {
+                        'id': user.id,
+                        'email': user.email,
+                        'phone': user.phone,
+                        'name': user.email,
+                        # 'name': f"{user.first_name} {user.last_name}",
+                        'user_type': user.get_user_type_display(),
+                        'sim_provider': sim_provider_data,
+                    },
+                    'access': str(refresh.access_token)
+                }, status=status.HTTP_200_OK)
+
+                response.set_cookie(
+                    key='refresh_token',
+                    value=str(refresh),
+                    httponly=True,
+                    secure=True,
+                    samesite='Lax'
+                )
+
+                return response
+            else:
+                return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    except Exception as e:
+        import traceback
+        print("Unhandled error in login_email:", traceback.format_exc())
+        return Response({'error': 'Something went wrong'}, status=500)
+
+
+# @api_view(['POST'])
+# @permission_classes([AllowAny])
+# def login_email(request):
+#     serializer = UserLoginSerializer(data=request.data)
+#     if serializer.is_valid():
+#         email = serializer.validated_data['email']
+#         password = serializer.validated_data['password']
         
 
-        user = authenticate(request, email=email, password=password)
+#         user = authenticate(request, email=email, password=password)
 
-        if not user:
-            user = authenticate(request, username=email, password=password)
+#         if not user:
+#             user = authenticate(request, username=email, password=password)
 
-        print("Trying to authenticate:", email)
+#         print("Trying to authenticate:", email)
        
-        if user:
-            refresh = RefreshToken.for_user(user)
+#         if user:
+#             refresh = RefreshToken.for_user(user)
 
-            sim_provider_data = None
+#             sim_provider_data = None
             
-            if user.sim_provider:
-                sim_provider_data = ProviderSerializer(user.sim_provider).data
+#             if user.sim_provider:
+#                 sim_provider_data = ProviderSerializer(user.sim_provider).data
 
 
-            print(sim_provider_data)
-            response = Response({
-                'message': 'Login successful',
-                'user': {
-                    'id': user.id,
-                    'email': user.email,
-                    'phone': user.phone,
-                    'name': f"{user.first_name} {user.last_name}",
-                    'user_type': user.get_user_type_display(),
-                    'sim_provider': sim_provider_data,
-                },
-                'access': str(refresh.access_token)
-            }, status=status.HTTP_200_OK)
+#             print(sim_provider_data)
+#             response = Response({
+#                 'message': 'Login successful',
+#                 'user': {
+#                     'id': user.id,
+#                     'email': user.email,
+#                     'phone': user.phone,
+#                     'name': f"{user.first_name} {user.last_name}",
+#                     'user_type': user.get_user_type_display(),
+#                     'sim_provider': sim_provider_data,
+#                 },
+#                 'access': str(refresh.access_token)
+#             }, status=status.HTTP_200_OK)
 
-            response.set_cookie(
-                key='refresh_token',
-                value=str(refresh),
-                httponly=True,
-                secure=True,
-                samesite='Lax'
-            )
+#             response.set_cookie(
+#                 key='refresh_token',
+#                 value=str(refresh),
+#                 httponly=True,
+#                 secure=True,
+#                 samesite='Lax'
+#             )
 
-            return response
-        else:
-            return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+#             return response
+#         else:
+#             return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+#     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 OTP_COOLDOWN_SECONDS = 120  # Cooldown of 1 minute

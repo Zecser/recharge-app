@@ -57,3 +57,5 @@ class LowBalanceThresholdAdmin(admin.ModelAdmin):
         notify_users_with_low_balance()
 
 admin.site.register(User, CustomUserAdmin)
+# admin.site.register(UserAdmin)
+# admin.site.register(Provider)

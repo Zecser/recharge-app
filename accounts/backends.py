@@ -8,8 +8,11 @@ class EmailBackend(ModelBackend):
     Authenticate using email instead of username.
     """
     def authenticate(self, request, email=None, password=None, **kwargs):
-        print(f"Custom EmailBackend used: email={email}")
-
+        print(f"🔒 EmailBackend: Trying login with email={email}")
+        print("🔒 Custom EmailBackend Called")
+        print("Request:", request)
+        print("Email:", email)
+        print("Password:", password)
         UserModel = get_user_model()
         try:
             user = UserModel.objects.get(email=email)
