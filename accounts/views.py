@@ -452,7 +452,7 @@ def login_email(request):
                         sim_provider_data = ProviderSerializer(user.sim_provider).data
                 except Exception as e:
                     print("Sim provider error:", e)
-
+             
                 response = Response({
                     'message': 'Login successful',
                     'user': {
