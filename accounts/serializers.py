@@ -179,7 +179,7 @@ class CreateUserSerializer(serializers.ModelSerializer):
     password = serializers.CharField(
         write_only=True, validators=[validate_password])
     password_confirm = serializers.CharField(write_only=True)
-    full_name = serializers.CharField(write_only=True)
+    # full_name = serializers.CharField(write_only=True)
 
     class Meta:
         model = User

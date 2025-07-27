@@ -6,10 +6,10 @@ from .views import  user_profile_create_or_update,get_admin_profiles,update_admi
 urlpatterns = [
 #     listadmins   createsubadmin
     path('admins/', get_admin_profiles, name='get-admin-profiles'),
-#     admin profille
+#     admin profille update
     path('profile/update/<int:id>/', update_admin_profile, name='update-admin-profile'),
 #     list subadmins
-    path('subadmins/', list_subadmins, name='list-subadmins'),
+    path('subadmins/', list_subadmins, name='lis_subadmins'),
 #     create subadmin
     path('createsubadmin/', createsubadmin, name='createsubadmin'),
 #     get subadmins
