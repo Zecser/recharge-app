@@ -344,37 +344,153 @@ class CreateRazorpayOrderAPIView(APIView):
 #             'success': True,
 #             'message': f'Payment verified. Plan {plan.title} will be recharged to {number}'
 #         }, status=200)
+# class RazorpayPaymentSuccessAPIView(APIView):
+#     permission_classes = [IsAuthenticated]
+
+#     def post(self, request):
+#         data = request.data
+#         required_fields = [
+#             'razorpay_order_id',
+#             'razorpay_payment_id',
+#             'razorpay_signature',
+#             'plan_id',
+#             'number'
+#         ]
+#         missing_fields = [field for field in required_fields if field not in data]
+#         if missing_fields:
+#             return Response(
+#                 {"error": f"Missing required fields: {', '.join(missing_fields)}"},
+#                 status=status.HTTP_400_BAD_REQUEST
+#             )
+#         # order_id = data.get('razorpay_order_id')
+#         # payment_id = data.get('razorpay_payment_id')
+#         # signature = data.get('razorpay_signature')
+#         # Step 2: Extract values
+#         razorpay_order_id = data['razorpay_order_id']
+#         razorpay_payment_id = data['razorpay_payment_id']
+#         razorpay_signature = data['razorpay_signature']
+#         # Step 3: Generate the expected signature
+#         generated_signature = hmac.new(
+#             key=bytes(settings.RAZORPAY_SECRET, 'utf-8'),
+#             msg=bytes(f"{razorpay_order_id}|{razorpay_payment_id}", 'utf-8'),
+#             digestmod=hashlib.sha256
+#         ).hexdigest()
+
+#         # Step 4: Compare signatures
+#         if generated_signature != razorpay_signature:
+#             return Response(
+#                 {"error": "Invalid signature. Payment verification failed."},
+#                 status=status.HTTP_400_BAD_REQUEST
+#             )
+
+#         # Validate plan and number
+#         plan = get_object_or_404(Plans, pk=data['plan_id'])
+#         amount = plan.amount
+#         # plan = get_object_or_404(Plans, pk=data['plan_id'])
+        
+#         # amount = Decimal(data['amount'])
+#         number = data['number']
+#         # Wallet logic
+#         client_user = request.user
+#         admin_user = get_object_or_404(User, user_type=UserType.ADMIN)
+
+#         client_wallet = get_object_or_404(Wallet, user=client_user)
+#         admin_wallet = get_object_or_404(Wallet, user=admin_user)
+
+#         if not client_wallet.can_debit(amount):
+#             return Response({'error': 'Insufficient balance'}, status=400)
+
+#         # Perform debit/credit transactions
+#         client_wallet.debit_balance(amount)
+#         WalletTransaction.objects.create(
+#             wallet=client_wallet,
+#             transaction_type='debit_from_wallet',
+#             amount=amount,
+#             description=f'Payment for plan {plan.title} to number {number}',
+#             created_by=client_user,
+#             status='success',          
+#             payment_id=data['razorpay_payment_id'] 
+# )
+        
+
+#         admin_wallet.add_balance(amount)
+#         WalletTransaction.objects.create(
+#             wallet=admin_wallet,
+#             transaction_type='add_to_wallet',
+#             amount=amount,
+#             description=f'Received payment for plan {plan.title} from {client_user.email}',
+#             created_by=client_user
+#         )
+
+#         # You can create a RechargeRecord here if needed
+
+#         # 🔽 Frontend Friendly Response
+#         return Response({
+#             'success': True,
+#             'message': f'✅ Payment verified successfully. Recharge for plan **{plan.title}** will be applied to **{number}**.',
+#             'plan': {
+#                 'id': plan.id,
+#                 'title': plan.title,
+#                 'description': plan.description,
+#                 'amount': float(amount),
+#                 'validity': plan.validity
+#             },
+#             'user': {
+#                 'id': client_user.id,
+#                 'email': client_user.email
+#             },
+#             'wallet': {
+#                 'balance': float(client_wallet.balance),
+#                 'debited': float(amount)
+#             },
+#             'razorpay': {
+#                 'order_id': data['razorpay_order_id'],
+#                 'payment_id': data['razorpay_payment_id']
+#             }
+#         }, status=200)
+
 class RazorpayPaymentSuccessAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
         data = request.data
+
         required_fields = [
-            'razorpay_order_id', 'razorpay_payment_id',
-            'razorpay_signature', 'amount',
-            'plan_id', 'number'
+            'razorpay_order_id',
+            'razorpay_payment_id',
+            'razorpay_signature',
+            'plan_id',
+            'number'
         ]
+        missing_fields = [field for field in required_fields if field not in data]
+        if missing_fields:
+            return Response(
+                {"error": f"Missing required fields: {', '.join(missing_fields)}"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-        # Check required fields
-        if not all(field in data for field in required_fields):
-            return Response({'error': 'Missing required fields'}, status=400)
+        razorpay_order_id = data.get('razorpay_order_id')
+        razorpay_payment_id = data.get('razorpay_payment_id')
+        razorpay_signature = data.get('razorpay_signature')
+        plan_id = data.get('plan_id')
+        number = data.get('number')
 
-        # Verify Razorpay signature
-        generated_signature = hmac.new(
-            bytes(settings.RAZORPAY_KEY_SECRET, 'utf-8'),
-            bytes(f"{data['razorpay_order_id']}|{data['razorpay_payment_id']}", 'utf-8'),
-            hashlib.sha256
-        ).hexdigest()
+        # ✅ Verify Razorpay signature using SDK
+        client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_SECRET))
+        try:
+            client.utility.verify_payment_signature({
+                'razorpay_order_id': razorpay_order_id,
+                'razorpay_payment_id': razorpay_payment_id,
+                'razorpay_signature': razorpay_signature
+            })
+        except razorpay.errors.SignatureVerificationError:
+            return Response({"error": "Invalid signature. Payment verification failed."}, status=400)
 
-        if generated_signature != data['razorpay_signature']:
-            return Response({'error': 'Invalid signature'}, status=400)
+        # Step 1: Fetch Plan and Amount
+        plan = get_object_or_404(Plans, pk=plan_id)
+        amount = plan.amount
 
-        # Validate plan and number
-        plan = get_object_or_404(Plans, pk=data['plan_id'])
-        number = data['number']
-        amount = Decimal(data['amount'])
-
-        # Wallet logic
+        # Step 2: Wallet Logic
         client_user = request.user
         admin_user = get_object_or_404(User, user_type=UserType.ADMIN)
 
@@ -384,16 +500,19 @@ class RazorpayPaymentSuccessAPIView(APIView):
         if not client_wallet.can_debit(amount):
             return Response({'error': 'Insufficient balance'}, status=400)
 
-        # Perform debit/credit transactions
+        # Step 3: Debit from Client Wallet
         client_wallet.debit_balance(amount)
         WalletTransaction.objects.create(
             wallet=client_wallet,
             transaction_type='debit_from_wallet',
             amount=amount,
             description=f'Payment for plan {plan.title} to number {number}',
-            created_by=client_user
+            created_by=client_user,
+            status='success',
+            payment_id=razorpay_payment_id
         )
 
+        # Step 4: Credit to Admin Wallet
         admin_wallet.add_balance(amount)
         WalletTransaction.objects.create(
             wallet=admin_wallet,
@@ -403,12 +522,10 @@ class RazorpayPaymentSuccessAPIView(APIView):
             created_by=client_user
         )
 
-        # You can create a RechargeRecord here if needed
-
-        # 🔽 Frontend Friendly Response
+        # Final Response
         return Response({
             'success': True,
-            'message': f'✅ Payment verified successfully. Recharge for plan **{plan.title}** will be applied to **{number}**.',
+            'message': f'✅ Payment verified. Recharge for plan **{plan.title}** will be applied to **{number}**.',
             'plan': {
                 'id': plan.id,
                 'title': plan.title,
@@ -425,10 +542,11 @@ class RazorpayPaymentSuccessAPIView(APIView):
                 'debited': float(amount)
             },
             'razorpay': {
-                'order_id': data['razorpay_order_id'],
-                'payment_id': data['razorpay_payment_id']
+                'order_id': razorpay_order_id,
+                'payment_id': razorpay_payment_id
             }
         }, status=200)
+
 # class CreateRazorpayOrderAPIView(APIView):
 #     permission_classes = [IsAuthenticated]
 
