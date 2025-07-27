@@ -4,14 +4,19 @@ from .models import Wallet, WalletTransaction, UserMargin
 
 @admin.register(Wallet)
 class WalletAdmin(admin.ModelAdmin):
-    list_display = ('user', 'balance', 'user_type', 'created_at', 'updated_at')
+    list_display = ('user', 'balance', 'get_user_type', 'created_at', 'updated_at')
     list_filter = ('user__user_type', 'created_at', 'updated_at')
     search_fields = ('user__email', 'user__username', 'user__phone')
     readonly_fields = ('created_at', 'updated_at')
     
-    def user_type(self, obj):
-        return obj.user.user_type.title()
-    user_type.short_description = 'User Type'
+    # def user_type(self, obj):
+    #     return obj.user.user_type.title()
+    # user_type.short_description = 'User Type'
+    def get_user_type(self, obj):
+        return obj.user.get_user_type_display()  # ✅ Returns human-readable string
+    
+    get_user_type.short_description = 'User Type'
+
 
 @admin.register(WalletTransaction)
 class WalletTransactionAdmin(admin.ModelAdmin):

@@ -91,42 +91,62 @@ def get_admin_profiles(request):
     admins = User.objects.filter(user_type=UserType.ADMIN)
     serializer = UserSerializer(admins, many=True)
     return Response(serializer.data, status=status.HTTP_200_OK)
-@swagger_auto_schema(
-    method='put',
-    operation_summary="Update Admin Profile",
-    operation_description="Update the logged-in admin's profile details.",
-    request_body=AdminProfileUpdateSerializer,
-    responses={
-        200: openapi.Response(
-            description="Profile updated successfully",
-            examples={
-                "application/json": {
-                    "message": "Profile updated successfully",
-                    "data": {
-                        "first_name": "John",
-                        "last_name": "Doe",
-                        "phone": "+911234567890",
-                        "email": "admin@example.com"
-                    }
-                }
-            }
-        ),
-        400: "Validation error",
-        403: "Not allowed",
-    },
-    tags=['Admin']
-)
+# @swagger_auto_schema(
+#     method='put',
+#     operation_summary="Update Admin Profile",
+#     operation_description="Update the logged-in admin's profile details.",
+#     request_body=AdminProfileUpdateSerializer,
+#     responses={
+#         200: openapi.Response(
+#             description="Profile updated successfully",
+#             examples={
+#                 "application/json": {
+#                     "message": "Profile updated successfully",
+#                     "data": {
+#                         "first_name": "John",
+#                         "last_name": "Doe",
+#                         "phone": "+911234567890",
+#                         "email": "admin@example.com"
+#                     }
+#                 }
+#             }
+#         ),
+#         400: "Validation error",
+#         403: "Not allowed",
+#     },
+#     tags=['Admin']
+# )
+# @api_view(['PUT'])
+# @permission_classes([IsAuthenticated])
+# def update_admin_profile(request):
+#     user = request.user
+
+#     # ✅ Check if authenticated before accessing user_type
+#     if not user or not user.is_authenticated:
+#         return Response({'error': 'Authentication credentials were not provided or are invalid.'},
+#                         status=status.HTTP_401_UNAUTHORIZED)
+
+#     if user.user_type != UserType.ADMIN:
+#         return Response({'error': 'Only admins can update this profile'},
+#                         status=status.HTTP_403_FORBIDDEN)
+
+#     serializer = AdminProfileUpdateSerializer(user, data=request.data, partial=True)
+#     if serializer.is_valid():
+#         serializer.save()
+#         return Response({'message': 'Profile updated successfully', 'data': serializer.data})
+
+#     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 @api_view(['PUT'])
 @permission_classes([IsAuthenticated])
 def update_admin_profile(request):
     user = request.user
 
-    # ✅ Check if authenticated before accessing user_type
     if not user or not user.is_authenticated:
         return Response({'error': 'Authentication credentials were not provided or are invalid.'},
                         status=status.HTTP_401_UNAUTHORIZED)
 
-    if user.user_type != UserType.ADMIN:
+    if int(user.user_type) != int(UserType.ADMIN):
         return Response({'error': 'Only admins can update this profile'},
                         status=status.HTTP_403_FORBIDDEN)
 
@@ -136,7 +156,6 @@ def update_admin_profile(request):
         return Response({'message': 'Profile updated successfully', 'data': serializer.data})
 
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
 @swagger_auto_schema(
     method='get',
     operation_summary="List Sub-Admins",
