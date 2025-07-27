@@ -20,7 +20,7 @@ from drf_yasg import openapi
 # client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
 from django.conf import settings
 
-client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_SECRET))
+client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
 class CreateRazorpayOrderAPIView(APIView):
     permission_classes = [IsAuthenticated]
     @swagger_auto_schema(
@@ -476,7 +476,7 @@ class RazorpayPaymentSuccessAPIView(APIView):
         number = data.get('number')
 
         # ✅ Verify Razorpay signature using SDK
-        client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_SECRET))
+        client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
         try:
             client.utility.verify_payment_signature({
                 'razorpay_order_id': razorpay_order_id,
