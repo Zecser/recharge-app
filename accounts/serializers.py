@@ -6,10 +6,6 @@ import re
 
 
 
-class UserSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = User
-        fields = ['id', 'first_name', 'last_name', 'email', 'phone', 'user_type']
 class AdminProfileUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
@@ -140,7 +136,7 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['id', 'email', 'username', 'first_name', 'last_name', 'phone', 'user_type',
+        fields = ['id', 'email', 'username', 'phone', 'user_type',
                   'user_type_display', 'is_active', 'date_joined', 'wallet_balance', 'wallet_id']
         read_only_fields = ['id', 'date_joined', 'wallet_balance', 'wallet_id']
 

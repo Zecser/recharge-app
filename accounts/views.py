@@ -83,10 +83,11 @@ def get_provider_from_phone(phone_number):
     tags=['Admin']
 )
 @api_view(['GET'])
-# @permission_classes([IsAuthenticated,IsAdminUserOnly])
+@permission_classes([IsAuthenticated, IsAdminUserOnly])
 def get_admin_profiles(request):
     print("User:", request.user)
     print("Is authenticated:", request.user.is_authenticated)
+
     admins = User.objects.filter(user_type=UserType.ADMIN)
     serializer = UserSerializer(admins, many=True)
     return Response(serializer.data, status=status.HTTP_200_OK)
