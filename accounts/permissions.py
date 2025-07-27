@@ -13,3 +13,4 @@ class IsAdminUserOnly(BasePermission):
             request.user.is_authenticated and 
             request.user.user_type == UserType.ADMIN
         )
+    

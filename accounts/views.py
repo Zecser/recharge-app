@@ -139,40 +139,45 @@ def get_admin_profiles(request):
 
 @api_view(['PUT'])
 @permission_classes([IsAuthenticated])
-def update_admin_profile(request):
-    user = request.user
+def update_admin_profile(request,id):
 
-    if not user or not user.is_authenticated:
-        return Response({'error': 'Authentication credentials were not provided or are invalid.'},
-                        status=status.HTTP_401_UNAUTHORIZED)
-
-    if int(user.user_type) != int(UserType.ADMIN):
-        return Response({'error': 'Only admins can update this profile'},
+    # Only allow other admins or superuser to update others
+    if int(request.user.user_type) != int(UserType.ADMIN):
+        return Response({'error': 'Only admins can perform this action'},
                         status=status.HTTP_403_FORBIDDEN)
+
+    try:
+        user = User.objects.get(id=id, user_type=UserType.ADMIN)
+    except User.DoesNotExist:
+        return Response({'error': 'Admin not found'}, status=status.HTTP_404_NOT_FOUND)
 
     serializer = AdminProfileUpdateSerializer(user, data=request.data, partial=True)
     if serializer.is_valid():
         serializer.save()
-        return Response({'message': 'Profile updated successfully', 'data': serializer.data})
+        return Response({'message': 'Admin profile updated successfully', 'data': serializer.data})
 
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 @swagger_auto_schema(
     method='get',
     operation_summary="List Sub-Admins",
     operation_description="List all users who are Distributor or Retailer",
     responses={200: UserSerializer(many=True)}
 )
+
 # ✅ List Sub-Admins
 @api_view(['GET'])
-# @permission_classes([IsAuthenticated, IsAdminUserType])
+@permission_classes([IsAuthenticated, IsAdminUserOnly ])
 def list_subadmins(request):
-    subadmins = User.objects.filter(user_type__in=[UserType.DISTRIBUTOR, UserType.RETAILER])
+    subadmins = User.objects.filter(
+        user_type__in=[UserType.DISTRIBUTOR, UserType.RETAILER],
+    )
     serializer = UserSerializer(subadmins, many=True)
     return Response(serializer.data, status=status.HTTP_200_OK)
 
 # ✅ Get Sub-Admin
 @api_view(['GET'])
-# @permission_classes([IsAuthenticated, IsAdminUserType])
+@permission_classes([IsAuthenticated, IsAdminUserOnly])
 def get_subadmin(request, subadmin_id):
     subadmin = get_object_or_404(
         User, id=subadmin_id, user_type__in=[UserType.DISTRIBUTOR, UserType.RETAILER]
@@ -959,8 +964,7 @@ class UserListView(generics.ListAPIView):
                         "id": 4,
                         "email": "newuser@example.com",
                         "username": "newuser@example.com",
-                        "first_name": "New",
-                        "last_name": "User",
+                    
                         "phone": "+1234567893",
                         "user_type": 2,
                         "user_type_display": "Distributor",
@@ -1012,6 +1016,20 @@ def create_user(request):
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+@api_view(['POST'])
+@permission_classes([IsAuthenticated, IsAdminUserOnly])
+def createsubadmin(request):
+    serializer = CreateUserSerializer(data=request.data)
+    if serializer.is_valid():
+        user = serializer.save()
+        return Response({
+            "message": "Subadmin created successfully",
+            "user_id": user.id,
+            "email": user.email,
+            "username": user.username,
+            "user_type": user.get_user_type_display()
+        }, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 @swagger_auto_schema(
     method='get',
     operation_summary="Get User Details (Admin Only)",
@@ -1388,14 +1406,15 @@ def search_users(request):
 @permission_classes([IsAuthenticated])
 def user_profile_create_or_update(request):
     #  Allow only DISTRIBUTOR (2) and RETAILER (3)
-    if not request.user.is_distributor and not request.user.is_retailer:
+    # if not request.user.is_distributor and not request.user.is_retailer:
+    if request.user.role not in [2, 3]:
         return Response(
             {"error": "Only distributors and retailers can manage profiles"},
             status=status.HTTP_403_FORBIDDEN
         )
 
     profile = UserProfile.objects.filter(user=request.user).first()
-
+    
     # Profile Creation
     if request.method == 'POST':
         if profile:

@@ -9,8 +9,30 @@ import re
 class AdminProfileUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['first_name', 'last_name', 'phone', 'email']
-        read_only_fields = ['email']  # often email is not editable
+        fields = ['username', 'phone', 'email']
+        # read_only_fields = ['email']  # often email is not editable
+    def validate_phone(self, value):
+        # Normalize phone
+        normalized_value = value.replace(" ", "")
+
+        # Pattern for Indian mobile numbers with +91
+        pattern = r'^\+91[6-9]\d{9}$'
+        if not re.match(pattern, normalized_value):
+            raise serializers.ValidationError(
+                "Phone number must be a valid 10-digit Indian number prefixed with +91."
+            )
+
+        # Check if phone number is already used by someone else
+        user = self.instance  # current logged-in user
+        if User.objects.exclude(id=user.id).filter(phone=normalized_value).exists():
+            raise serializers.ValidationError("Phone number already in use.")
+
+        return normalized_value
+    def validate_email(self, value):
+        user = self.instance
+        if User.objects.exclude(id=user.id).filter(email=value).exists():
+            raise serializers.ValidationError("Email already in use.")
+        return value
 
 
 
@@ -161,7 +183,7 @@ class CreateUserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['email', 'username', 'phone', 'full_name',
+        fields = ['email', 'username', 'phone',
                   'user_type', 'password', 'password_confirm']
         extra_kwargs = {
             'email': {'required': True},
@@ -185,13 +207,13 @@ class CreateUserSerializer(serializers.ModelSerializer):
         validated_data.pop('password_confirm')
         password = validated_data.pop('password')
 
-        # Handle full_name splitting
-        full_name = validated_data.pop('full_name', '').strip()
-        parts = full_name.split()
-        first_name = parts[0] if parts else ''
-        last_name = ' '.join(parts[1:]) if len(parts) > 1 else ''
-        validated_data['first_name'] = first_name
-        validated_data['last_name'] = last_name
+        # # Handle full_name splitting
+        # full_name = validated_data.pop('full_name', '').strip()
+        # parts = full_name.split()
+        # first_name = parts[0] if parts else ''
+        # last_name = ' '.join(parts[1:]) if len(parts) > 1 else ''
+        # validated_data['first_name'] = first_name
+        # validated_data['last_name'] = last_name
 
         # Set username same as email if not provided
         if not validated_data.get('username'):
