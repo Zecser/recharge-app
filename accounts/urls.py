@@ -1,6 +1,6 @@
 from django.urls import path
 from . import views
-from rest_framework_simplejwt.views import TokenRefreshView
+from rest_framework_simplejwt.views import TokenRefreshView ,TokenObtainPairView
 from .views import  user_profile_create_or_update,get_admin_profiles,update_admin_profile,list_subadmins, get_subadmin, update_subadmin
 
 urlpatterns = [
@@ -16,6 +16,7 @@ urlpatterns = [
 #     path('login/phone/', views.login_phone, name='login_phone'),
     path('otp/generate/', views.generate_otp, name='generate_otp'),
     path('otp/verify/', views.verify_otp, name='verify_otp'),
+    path('token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('profile/', user_profile_create_or_update),
     

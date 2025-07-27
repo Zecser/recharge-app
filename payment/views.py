@@ -15,75 +15,57 @@ from rest_framework.permissions import IsAuthenticated
 import hmac
 import hashlib
 from django.db import transaction
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
+# client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
+from django.conf import settings
 
-client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
-
-# class CreateRazorpayOrderAPIView(APIView):
-#     permission_classes = [IsAuthenticated]
-
-#     def post(self, request):
-#         amount = request.data.get('amount')
-#         plan_id = request.data.get('plan_id')
-#         number = request.data.get('number')
-
-#         # Validate amount
-#         try:
-#             amount = Decimal(amount)
-#             if amount <= 0:
-#                 return Response({'error': 'Amount must be greater than 0'}, status=400)
-#         except:
-#             return Response({'error': 'Invalid amount'}, status=400)
-
-#         # Validate plan
-#         plan = get_object_or_404(Plans, pk=plan_id)
-
-#         # Validate number (optional)
-#         if not number or len(number) < 8:
-#             return Response({'error': 'Invalid number'}, status=400)
-
-#         amount_paise = int(amount * 100)
-
-#         order = client.order.create({
-#             "amount": amount_paise,
-#             "currency": "INR",
-#             "payment_capture": 1
-#         })
-
-#         return Response({
-#             "order_id": order['id'],
-#             "razorpay_key": settings.RAZORPAY_KEY_ID,
-#             "amount": amount_paise,
-#             "currency": "INR",
-#             "plan_id": plan.id,
-#             "number": number
-#         }, status=200)
-
+client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_SECRET))
 class CreateRazorpayOrderAPIView(APIView):
     permission_classes = [IsAuthenticated]
-
+    @swagger_auto_schema(
+        manual_parameters=[
+            openapi.Parameter(
+                'Authorization', openapi.IN_HEADER,
+                description="JWT token: Bearer <your_token>",
+                type=openapi.TYPE_STRING
+            )
+        ]
+    )
     def post(self, request):
+        print("AUTH HEADER:", request.headers.get('Authorization'))
+        print("USER:", request.user)
+        user = request.user
         amount = request.data.get('amount')
+        print("post",amount)
         plan_id = request.data.get('plan_id')
+        print("post",plan_id)
         number = request.data.get('number')
+        print("post",number)
 
         # Validate amount
         try:
+            print("tryyyyyyyyyyy")
             amount = Decimal(amount)
             if amount <= 0:
+                print("iffffff")
                 return Response({'error': 'Amount must be greater than 0'}, status=400)
         except:
+            print("exxxxxxxxxx")
             return Response({'error': 'Invalid amount'}, status=400)
 
         # Validate plan
         plan = get_object_or_404(Plans, pk=plan_id)
-
+        print("plane",plan)
         # Validate number
         if not number or len(number) < 8:
+            print("iiiiif notttttt")
             return Response({'error': 'Invalid number'}, status=400)
 
         amount_paise = int(amount * 100)
 
         try:
+            print("yyyyyyyyyyyyyyyyy")
             with transaction.atomic():
                 # Create Razorpay order
                 order = client.order.create({
@@ -104,8 +86,9 @@ class CreateRazorpayOrderAPIView(APIView):
                     status='pending',
                     payment_id=order['id'],
                     created_by=request.user
+                    
                 )
-
+                print("WalletTrap",)
                 return Response({
                     "order_id": order['id'],
                     "razorpay_key": settings.RAZORPAY_KEY_ID,
@@ -115,9 +98,185 @@ class CreateRazorpayOrderAPIView(APIView):
                     "number": number,
                     "message": "Order created successfully. Awaiting payment."
                 }, status=200)
-
+                
         except Exception as e:
+            print("e")
             return Response({"error": str(e)}, status=500)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# class CreateRazorpayOrderAPIView(APIView):
+#     permission_classes = [IsAuthenticated]
+   
+
+#     def post(self, request):
+#         print("post")
+#         amount = request.data.get('amount')
+#         print("post",amount)
+#         plan_id = request.data.get('plan_id')
+#         print("post",plan_id)
+#         number = request.data.get('number')
+#         print("post",number)
+
+#         # Validate amount
+#         try:
+#             print("tryyyyyyyyyyy")
+#             amount = Decimal(amount)
+#             if amount <= 0:
+#                 print("iffffff")
+#                 return Response({'error': 'Amount must be greater than 0'}, status=400)
+#         except:
+#             print("exxxxxxxxxx")
+#             return Response({'error': 'Invalid amount'}, status=400)
+
+#         # Validate plan
+#         plan = get_object_or_404(Plans, pk=plan_id)
+#         print("plane",plan)
+#         # Validate number
+#         if not number or len(number) < 8:
+#             print("iiiiif notttttt")
+#             return Response({'error': 'Invalid number'}, status=400)
+
+#         amount_paise = int(amount * 100)
+
+#         try:
+#             print("yyyyyyyyyyyyyyyyy")
+#             with transaction.atomic():
+#                 # Create Razorpay order
+#                 order = client.order.create({
+#                     "amount": amount_paise,
+#                     "currency": "INR",
+#                     "payment_capture": 1
+#                 })
+
+#                 # Get or create wallet
+#                 wallet, _ = Wallet.objects.get_or_create(user=request.user)
+
+#                 # Save a pending wallet transaction
+#                 WalletTransaction.objects.create(
+#                     wallet=wallet,
+#                     transaction_type='add_to_wallet',
+#                     amount=amount,
+#                     description=f"Wallet top-up initiated via Razorpay for plan {plan.title}",
+#                     status='pending',
+#                     payment_id=order['id'],
+#                     created_by=request.user
+                    
+#                 )
+#                 print("WalletTrap",)
+#                 return Response({
+#                     "order_id": order['id'],
+#                     "razorpay_key": settings.RAZORPAY_KEY_ID,
+#                     "amount": amount_paise,
+#                     "currency": "INR",
+#                     "plan_id": plan.id,
+#                     "number": number,
+#                     "message": "Order created successfully. Awaiting payment."
+#                 }, status=200)
+                
+#         except Exception as e:
+#             print("e")
+#             return Response({"error": str(e)}, status=500)
+
+
+# # views.py
+# from rest_framework.views import APIView
+# from rest_framework.response import Response
+# from rest_framework.permissions import IsAuthenticated
+# from rest_framework import status
+# from django.conf import settings
+# from django.shortcuts import get_object_or_404
+# from django.db import transaction
+# from decimal import Decimal
+# import razorpay
+
+# from .models import Wallet, WalletTransaction
+
+# class CreateRazorpayOrderAPIView(APIView):
+#     permission_classes = [IsAuthenticated]
+
+#     def post(self, request):
+#         try:
+#             amount = request.data.get("amount")
+#             plan_id = request.data.get("plan_id")
+#             number = request.data.get("number")
+
+#             # Validate input
+#             if not amount or not plan_id or not number:
+#                 return Response({"error": "All fields are required."}, status=status.HTTP_400_BAD_REQUEST)
+
+#             try:
+#                 amount = Decimal(amount)
+#                 if amount <= 0:
+#                     return Response({"error": "Amount must be greater than 0."}, status=status.HTTP_400_BAD_REQUEST)
+#             except:
+#                 return Response({"error": "Invalid amount format."}, status=status.HTTP_400_BAD_REQUEST)
+
+#             if len(str(number)) < 8:
+#                 return Response({"error": "Invalid mobile number."}, status=status.HTTP_400_BAD_REQUEST)
+
+#             # Validate Plan
+#             plan = get_object_or_404(Plans, pk=plan_id, is_active=True)
+
+#             # Convert amount to paisa
+#             amount_paise = int(amount * 100)
+
+#             # Razorpay client setup
+           
+#             with transaction.atomic():
+#                 # Create Razorpay Order
+#                 razorpay_order = client.order.create({
+#                     "amount": amount_paise,
+#                     "currency": "INR",
+#                     "payment_capture": 1
+#                 })
+#                 print(request.user)
+#                 # Create or get Wallet
+#                 wallet, _ = Wallet.objects.get_or_create(user=request.user)
+
+#                 # Save wallet transaction as pending
+#                 WalletTransaction.objects.create(
+#                     wallet=wallet,
+#                     transaction_type='add_to_wallet',
+#                     amount=amount,
+#                     description=f"Recharge initiated for {plan.title}",
+#                     status='pending',
+#                     payment_id=razorpay_order['id'],
+#                     created_by=request.user
+#                 )
+
+#                 return Response({
+#                     "order_id": razorpay_order["id"],
+#                     "razorpay_key": settings.RAZORPAY_KEY_ID,
+#                     "amount": amount_paise,
+#                     "currency": "INR",
+#                     "plan_id": plan.id,
+#                     "number": number,
+#                     "message": "Razorpay order created successfully."
+#                 }, status=status.HTTP_200_OK)
+
+#         except Exception as e:
+#             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+
+
+
+
 
 # class RazorpayPaymentSuccessAPIView(APIView):
 #     permission_classes = [IsAuthenticated]

@@ -373,5 +373,8 @@ if not DEBUG:
         ]),
     ]
 # Razorpay settings
-RAZORPAY_KEY_ID = 'rzp_test_RQ0iiR3hvlsipr'
-RAZORPAY_KEY_SECRET = 'EWnWgWNSnqPek9pPBX7S6'
+# RAZORPAY_KEY_ID = 'rzp_test_RQ0iiR3hvlsipr'
+# RAZORPAY_KEY_SECRET = 'EWnWgWNSnqPek9pPBX7S6'
+
+RAZORPAY_KEY_ID = config('RAZORPAY_KEY_ID')
+RAZORPAY_SECRET = config('RAZORPAY_SECRET')
