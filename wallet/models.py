@@ -14,19 +14,25 @@ class Wallet(models.Model):
     def __str__(self):
         return f"{self.user.email} - Balance: ₹{self.balance}"
     
-    def can_debit(self, amount):
-        return self.balance >= amount
-    
+    # def can_debit(self, amount):
+    #     return self.balance >= Decimal(amount)
+    def can_debit(self, amount) -> bool:
+        return Decimal(str(self.balance)) >= Decimal(str(amount))
     def add_balance(self, amount):
         self.balance += amount
         self.save()
-    
     def debit_balance(self, amount):
         if self.can_debit(amount):
-            self.balance -= amount
+            self.balance -= Decimal(amount)
             self.save()
             return True
         return False
+    # def debit_balance(self, amount):
+    #     if self.can_debit(amount):
+    #         self.balance -= amount
+    #         self.save()
+    #         return True
+    #     return False
 
 class WalletTransaction(models.Model):
     TRANSACTION_TYPES = [

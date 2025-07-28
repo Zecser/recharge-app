@@ -6,7 +6,7 @@ from django.db import transaction
 from django.shortcuts import get_object_or_404
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
-
+from decimal import Decimal
 from .models import Wallet, WalletTransaction, UserMargin
 from .serializers import (
     WalletSerializer, WalletTransactionSerializer, AddToWalletSerializer,
@@ -504,23 +504,28 @@ class UserMarginListView(generics.ListAPIView):
 def recharge_wallet_transfer(request):
     serializer = RechargeTransactionSerializer(data=request.data)
     if serializer.is_valid():
-        amount = serializer.validated_data['amount']
+        # Safely convert amount to Decimal
+        amount = Decimal(str(serializer.validated_data['amount']))
         credit_to_email = serializer.validated_data['credit_to_email']
         description = serializer.validated_data.get('description', 'Recharge payment')
         service_type = serializer.validated_data.get('service_type', 'Recharge')
 
         user = request.user
+
         try:
             with transaction.atomic():
                 sender_wallet = get_object_or_404(Wallet, user=user)
-                
+
                 if not sender_wallet.can_debit(amount):
-                    return Response({"error": "Insufficient wallet balance"}, status=status.HTTP_400_BAD_REQUEST)
-                
+                    return Response(
+                        {"error": "Insufficient wallet balance"},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+
                 receiver_user = get_object_or_404(User, email=credit_to_email)
                 receiver_wallet, _ = Wallet.objects.get_or_create(user=receiver_user)
 
-                # Debit from sender
+                # Debit sender
                 sender_wallet.debit_balance(amount)
                 WalletTransaction.objects.create(
                     wallet=sender_wallet,
@@ -530,7 +535,7 @@ def recharge_wallet_transfer(request):
                     created_by=user
                 )
 
-                # Credit to receiver
+                # Credit receiver
                 receiver_wallet.add_balance(amount)
                 WalletTransaction.objects.create(
                     wallet=receiver_wallet,
@@ -547,6 +552,87 @@ def recharge_wallet_transfer(request):
                 }, status=status.HTTP_200_OK)
 
         except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response(
+                {"error": f"Transaction failed: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+# @swagger_auto_schema(
+#     method='post',
+#     operation_summary="Recharge & Transfer Money",
+#     operation_description="Deduct money from the user's wallet and credit to the retailer or admin wallet",
+#     request_body=RechargeTransactionSerializer,
+#     responses={
+#         200: openapi.Response(
+#             description="Recharge successful and money transferred",
+#             examples={
+#                 "application/json": {
+#                     "message": "Recharge successful. Amount transferred to retailer/admin.",
+#                     "user_wallet_balance": "250.00",
+#                     "receiver_wallet_balance": "1250.00"
+#                 }
+#             }
+#         ),
+#         400: openapi.Response(
+#             description="Validation or insufficient balance",
+#             examples={
+#                 "application/json": {"error": "Insufficient wallet balance"}
+#             }
+#         )
+#     },
+#     tags=['Wallet Management']
+# )
+# @api_view(['POST'])
+# @permission_classes([IsAuthenticated])
+# def recharge_wallet_transfer(request):
+#     serializer = RechargeTransactionSerializer(data=request.data)
+#     if serializer.is_valid():
+#         amount = serializer.validated_data['amount']
+#         credit_to_email = serializer.validated_data['credit_to_email']
+#         description = serializer.validated_data.get('description', 'Recharge payment')
+#         service_type = serializer.validated_data.get('service_type', 'Recharge')
+
+#         user = request.user
+#         try:
+#             with transaction.atomic():
+#                 sender_wallet = get_object_or_404(Wallet, user=user)
+                
+#                 amount = Decimal(str(serializer.validated_data['amount']))  # Ensures precision
+#                 if not sender_wallet.can_debit(amount):
+#                     return Response({"error": "Insufficient wallet balance"}, status=status.HTTP_400_BAD_REQUEST)
+                
+#                 receiver_user = get_object_or_404(User, email=credit_to_email)
+#                 receiver_wallet, _ = Wallet.objects.get_or_create(user=receiver_user)
+
+#                 # Debit from sender
+#                 sender_wallet.debit_balance(amount)
+#                 WalletTransaction.objects.create(
+#                     wallet=sender_wallet,
+#                     transaction_type='debit_for_recharge',
+#                     amount=amount,
+#                     description=description,
+#                     created_by=user
+#                 )
+
+#                 # Credit to receiver
+#                 receiver_wallet.add_balance(amount)
+#                 WalletTransaction.objects.create(
+#                     wallet=receiver_wallet,
+#                     transaction_type='credit_from_recharge',
+#                     amount=amount,
+#                     description=f"Received from {user.email} for {service_type}",
+#                     created_by=user
+#                 )
+
+#                 return Response({
+#                     "message": "Recharge successful. Amount transferred to retailer/admin.",
+#                     "user_wallet_balance": str(sender_wallet.balance),
+#                     "receiver_wallet_balance": str(receiver_wallet.balance)
+#                 }, status=status.HTTP_200_OK)
+
+#         except Exception as e:
+#             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+#     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

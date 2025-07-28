@@ -483,11 +483,13 @@ class RazorpayPaymentSuccessAPIView(APIView):
             # ✅ Verify Razorpay signature using SDK
             try:
                 print("yessssssssssssssssssssssssssss")
+                print("Verifying Razorpay signature...")
                 client.utility.verify_payment_signature({
                     'razorpay_order_id': razorpay_order_id,
                     'razorpay_payment_id': razorpay_payment_id,
                     'razorpay_signature': razorpay_signature
                 })
+                print("signature varified")
             except razorpay.errors.SignatureVerificationError:
                 print("noooooooooooooooooooooo")
                 return Response({"error": "Invalid signature. Payment verification failed."}, status=400)
@@ -507,11 +509,12 @@ class RazorpayPaymentSuccessAPIView(APIView):
 
             client_wallet = get_object_or_404(Wallet, user=client_user)
             admin_wallet = get_object_or_404(Wallet, user=admin_user)
-
+            amount = plan.amount
+            # if not client_wallet.can_debit(amount):
+            #     print("debiiiiiiiiiiiiiiiiiiiiiiitttttttttttttttttt")
+            #     return Response({'error': 'Insufficient balance'}, status=400)
             if not client_wallet.can_debit(amount):
-                print("debiiiiiiiiiiiiiiiiiiiiiiitttttttttttttttttt")
                 return Response({'error': 'Insufficient balance'}, status=400)
-
             # Step 3: Debit from Client Wallet
             
             client_wallet.debit_balance(amount)
@@ -523,7 +526,7 @@ class RazorpayPaymentSuccessAPIView(APIView):
                 created_by=client_user,
                 status='success',
                 payment_id=razorpay_payment_id,
-                timestamp=now()
+                # timestamp=now()
             )
 
             # Step 4: Credit to Admin Wallet
@@ -534,7 +537,7 @@ class RazorpayPaymentSuccessAPIView(APIView):
                 amount=amount,
                 description=f'Received payment for plan {plan.title} from {client_user.email}',
                 created_by=client_user,
-                timestamp=now()
+                # timestamp=now()
             )
             print("Client wallet balance:", client_wallet.balance)
             print("Plan amount:", amount)
