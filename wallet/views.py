@@ -6,7 +6,7 @@ from django.db import transaction
 from django.shortcuts import get_object_or_404
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
-from decimal import Decimal
+
 from .models import Wallet, WalletTransaction, UserMargin
 from .serializers import (
     WalletSerializer, WalletTransactionSerializer, AddToWalletSerializer,
@@ -253,7 +253,107 @@ def add_to_wallet(request):
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+import razorpay
+from django.conf import settings
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def initiate_wallet_recharge(request):
+    if not request.user.is_admin:
+        return Response({"error": "Only admins can initiate wallet recharges."}, status=status.HTTP_403_FORBIDDEN)
 
+    serializer = AddToWalletSerializer(data=request.data)
+    if serializer.is_valid():
+        amount = serializer.validated_data['amount']
+        user_email = serializer.validated_data['user_email']
+        description = serializer.validated_data.get('description', '')
+
+        try:
+            user = User.objects.get(email=user_email)
+        except User.DoesNotExist:
+            return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
+
+        razorpay_order = client.order.create({
+            "amount": int(amount * 100),  # in paise
+            "currency": "INR",
+            "payment_capture": 1,
+            "notes": {
+                "user_email": user_email,
+                "description": description,
+            }
+        })
+
+        return Response({
+            "message": "Razorpay order created",
+            "order_id": razorpay_order["id"],
+            "amount": amount,
+            "currency": "INR",
+            "user_email": user_email,
+            "razorpay_key": settings.RAZORPAY_KEY_ID
+        })
+
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def confirm_wallet_recharge(request):
+    if not request.user.is_admin:
+        return Response({"error": "Only admins can confirm wallet recharges."}, status=status.HTTP_403_FORBIDDEN)
+    data = request.data
+    required_fields = [
+                'razorpay_order_id',
+                'razorpay_payment_id',
+                'razorpay_signature',
+                'user_email',
+                'amount'
+            ]
+    missing_fields = [field for field in required_fields if field not in data]
+    if missing_fields:
+        return Response(
+            {"error": f"Missing required fields: {', '.join(missing_fields)}"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    payment_id = request.data.get('razorpay_payment_id')
+    order_id = request.data.get('razorpay_order_id')
+    signature = request.data.get('razorpay_signature')
+    user_email = request.data.get('user_email')
+    amount = request.data.get('amount')  # Should match original amount
+
+    if not all([payment_id, order_id, signature, user_email, amount]):
+        return Response({"error": "Missing payment verification details."}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Verify signature
+    client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
+    try:
+        client.utility.verify_payment_signature({
+            'razorpay_order_id': order_id,
+            'razorpay_payment_id': payment_id,
+            'razorpay_signature': signature
+        })
+    except razorpay.errors.SignatureVerificationError:
+        return Response({"error": "Invalid Razorpay payment signature."}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        with transaction.atomic():
+            user = User.objects.get(email=user_email)
+            wallet, _ = Wallet.objects.get_or_create(user=user)
+
+            wallet.add_balance(amount)
+
+            WalletTransaction.objects.create(
+                wallet=wallet,
+                transaction_type='add_to_wallet',
+                amount=amount,
+                description="Razorpay Recharge",
+                created_by=request.user
+            )
+
+            return Response({
+                "message": "Money added to wallet after successful payment",
+                "wallet": WalletSerializer(wallet).data
+            }, status=status.HTTP_200_OK)
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 @swagger_auto_schema(
     method='post',
     operation_summary="Debit Money from Wallet (Admin Only)",
@@ -504,28 +604,23 @@ class UserMarginListView(generics.ListAPIView):
 def recharge_wallet_transfer(request):
     serializer = RechargeTransactionSerializer(data=request.data)
     if serializer.is_valid():
-        # Safely convert amount to Decimal
-        amount = Decimal(str(serializer.validated_data['amount']))
+        amount = serializer.validated_data['amount']
         credit_to_email = serializer.validated_data['credit_to_email']
         description = serializer.validated_data.get('description', 'Recharge payment')
         service_type = serializer.validated_data.get('service_type', 'Recharge')
 
         user = request.user
-
         try:
             with transaction.atomic():
                 sender_wallet = get_object_or_404(Wallet, user=user)
-
+                
                 if not sender_wallet.can_debit(amount):
-                    return Response(
-                        {"error": "Insufficient wallet balance"},
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
-
+                    return Response({"error": "Insufficient wallet balance"}, status=status.HTTP_400_BAD_REQUEST)
+                
                 receiver_user = get_object_or_404(User, email=credit_to_email)
                 receiver_wallet, _ = Wallet.objects.get_or_create(user=receiver_user)
 
-                # Debit sender
+                # Debit from sender
                 sender_wallet.debit_balance(amount)
                 WalletTransaction.objects.create(
                     wallet=sender_wallet,
@@ -535,7 +630,7 @@ def recharge_wallet_transfer(request):
                     created_by=user
                 )
 
-                # Credit receiver
+                # Credit to receiver
                 receiver_wallet.add_balance(amount)
                 WalletTransaction.objects.create(
                     wallet=receiver_wallet,
@@ -552,87 +647,6 @@ def recharge_wallet_transfer(request):
                 }, status=status.HTTP_200_OK)
 
         except Exception as e:
-            return Response(
-                {"error": f"Transaction failed: {str(e)}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-# @swagger_auto_schema(
-#     method='post',
-#     operation_summary="Recharge & Transfer Money",
-#     operation_description="Deduct money from the user's wallet and credit to the retailer or admin wallet",
-#     request_body=RechargeTransactionSerializer,
-#     responses={
-#         200: openapi.Response(
-#             description="Recharge successful and money transferred",
-#             examples={
-#                 "application/json": {
-#                     "message": "Recharge successful. Amount transferred to retailer/admin.",
-#                     "user_wallet_balance": "250.00",
-#                     "receiver_wallet_balance": "1250.00"
-#                 }
-#             }
-#         ),
-#         400: openapi.Response(
-#             description="Validation or insufficient balance",
-#             examples={
-#                 "application/json": {"error": "Insufficient wallet balance"}
-#             }
-#         )
-#     },
-#     tags=['Wallet Management']
-# )
-# @api_view(['POST'])
-# @permission_classes([IsAuthenticated])
-# def recharge_wallet_transfer(request):
-#     serializer = RechargeTransactionSerializer(data=request.data)
-#     if serializer.is_valid():
-#         amount = serializer.validated_data['amount']
-#         credit_to_email = serializer.validated_data['credit_to_email']
-#         description = serializer.validated_data.get('description', 'Recharge payment')
-#         service_type = serializer.validated_data.get('service_type', 'Recharge')
-
-#         user = request.user
-#         try:
-#             with transaction.atomic():
-#                 sender_wallet = get_object_or_404(Wallet, user=user)
-                
-#                 amount = Decimal(str(serializer.validated_data['amount']))  # Ensures precision
-#                 if not sender_wallet.can_debit(amount):
-#                     return Response({"error": "Insufficient wallet balance"}, status=status.HTTP_400_BAD_REQUEST)
-                
-#                 receiver_user = get_object_or_404(User, email=credit_to_email)
-#                 receiver_wallet, _ = Wallet.objects.get_or_create(user=receiver_user)
-
-#                 # Debit from sender
-#                 sender_wallet.debit_balance(amount)
-#                 WalletTransaction.objects.create(
-#                     wallet=sender_wallet,
-#                     transaction_type='debit_for_recharge',
-#                     amount=amount,
-#                     description=description,
-#                     created_by=user
-#                 )
-
-#                 # Credit to receiver
-#                 receiver_wallet.add_balance(amount)
-#                 WalletTransaction.objects.create(
-#                     wallet=receiver_wallet,
-#                     transaction_type='credit_from_recharge',
-#                     amount=amount,
-#                     description=f"Received from {user.email} for {service_type}",
-#                     created_by=user
-#                 )
-
-#                 return Response({
-#                     "message": "Recharge successful. Amount transferred to retailer/admin.",
-#                     "user_wallet_balance": str(sender_wallet.balance),
-#                     "receiver_wallet_balance": str(receiver_wallet.balance)
-#                 }, status=status.HTTP_200_OK)
-
-#         except Exception as e:
-#             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-#     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
