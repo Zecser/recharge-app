@@ -21,8 +21,10 @@ from .serializers import (
     OTPVerifySerializer, UserSerializer, CreateUserSerializer,
     UpdateUserSerializer, PasswordResetSerializer, UserProfileSerializer,AdminProfileUpdateSerializer
 )
+from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 from rest_framework.permissions import IsAuthenticated
-
+from rest_framework.views import APIView
+from rest_framework_simplejwt.exceptions import InvalidToken
 import random
 import string
 from wallet.models import *
@@ -521,6 +523,38 @@ def login_email(request):
         return Response({'error': 'Something went wrong'}, status=500)
 
 
+class CustomTokenRefreshView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request, *args, **kwargs):
+        refresh_token = request.COOKIES.get('refresh_token')
+
+        if not refresh_token:
+            return Response({'error': 'Refresh token missing in cookies'}, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = TokenRefreshSerializer(data={'refresh': refresh_token})
+
+        try:
+            serializer.is_valid(raise_exception=True)
+        except InvalidToken:
+            return Response({'error': 'Invalid refresh token'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        access_token = serializer.validated_data['access']
+
+        # Decode the refresh token manually to extract the user_id
+        try:
+            token = RefreshToken(refresh_token)
+            user_id = token['user_id']
+            user = User.objects.get(id=user_id)
+            user_data = UserSerializer(user).data
+        except Exception as e:
+            return Response({'error': 'Failed to get user info from refresh token'}, status=500)
+
+        return Response({
+            'access': access_token,
+            'message': 'Token refreshed successfully',
+            'user': user_data
+        }, status=status.HTTP_200_OK)
 # @api_view(['POST'])
 # @permission_classes([AllowAny])
 # def login_email(request):
@@ -1442,3 +1476,10 @@ def user_profile_create_or_update(request):
                 "profile": serializer.data
             }, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+
+# @api_view(['GET'])
+# @permission_classes([IsAuthenticated])
+# def current_user_view(request):
+#     serializer = UserSerializer(request.user)
+#     return Response(serializer.data)

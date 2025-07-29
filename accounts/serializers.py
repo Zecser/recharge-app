@@ -277,3 +277,14 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
     def get_full_name(self, obj):
         return f"{obj.user.first_name} {obj.user.last_name}".strip()
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+
+class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
+    @classmethod
+    def get_token(cls, user):
+        token = super().get_token(user)
+        
+        # Add custom claims
+        token['email'] = user.email
+        token['user_type'] = user.user_type
+        return token

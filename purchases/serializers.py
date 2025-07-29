@@ -58,11 +58,14 @@ class PurchaseHistorySerializer(serializers.ModelSerializer):
             'amount',
         ]
 
+    # def get_user_name(self, obj):
+    #     user = obj.user
+    #     if user.first_name or user.last_name:
+    #         return f"{user.first_name} {user.last_name}".strip()
+    #     return user.email.split('@')[0]
     def get_user_name(self, obj):
         user = obj.user
-        if user.first_name or user.last_name:
-            return f"{user.first_name} {user.last_name}".strip()
-        return user.email.split('@')[0]
+        return user.username or user.email
 
     def get_date(self, obj):
         return obj.created_at.date()
