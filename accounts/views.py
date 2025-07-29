@@ -291,8 +291,10 @@ def signup(request):
             key='refresh_token',
             value=str(refresh),
             httponly=True,
-            secure=not settings.DEBUG,  # 🔁 Secure=True only in production
-            samesite='Lax'
+            # secure=not settings.DEBUG,  # 🔁 Secure=True only in production
+            # samesite='Lax'
+            secure=True,  # ⚠️ MUST be True when SameSite=None
+            samesite='None'  # Allow cross-origin cookie
         )
         return response
         
@@ -507,8 +509,10 @@ def login_email(request):
                     key='refresh_token',
                     value=str(refresh),
                     httponly=True,
-                    secure=not settings.DEBUG,  # 🔁 Secure=True only in production
-                    samesite='Lax'
+                    # secure=not settings.DEBUG,  # 🔁 Secure=True only in production
+                    # samesite='Lax'
+                    secure=True,  # ⚠️ MUST be True when SameSite=None
+                    samesite='None'  # Allow cross-origin cookie
                 )
 
                 return response
