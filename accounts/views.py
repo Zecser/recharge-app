@@ -10,7 +10,7 @@ from rest_framework import status, generics
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
-from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.tokens import RefreshToken,TokenError
 from django.contrib.auth import authenticate
 from django.shortcuts import get_object_or_404
 from drf_yasg.utils import swagger_auto_schema
@@ -291,10 +291,9 @@ def signup(request):
             key='refresh_token',
             value=str(refresh),
             httponly=True,
-            # secure=not settings.DEBUG,  # 🔁 Secure=True only in production
+            secure=not settings.DEBUG,  # 🔁 Secure=True only in production
             # samesite='Lax'
-            secure=True,  # ⚠️ MUST be True when SameSite=None
-            samesite='None'  # Allow cross-origin cookie
+            samesite='None',
         )
         return response
         
@@ -509,10 +508,9 @@ def login_email(request):
                     key='refresh_token',
                     value=str(refresh),
                     httponly=True,
-                    # secure=not settings.DEBUG,  # 🔁 Secure=True only in production
+                    secure=not settings.DEBUG,  # 🔁 Secure=True only in production
                     # samesite='Lax'
-                    secure=True,  # ⚠️ MUST be True when SameSite=None
-                    samesite='None'  # Allow cross-origin cookie
+                    samesite='None',
                 )
 
                 return response
@@ -525,7 +523,27 @@ def login_email(request):
         import traceback
         print("Unhandled error in login_email:", traceback.format_exc())
         return Response({'error': 'Something went wrong'}, status=500)
+class LogoutView(APIView):
+    permission_classes = [IsAuthenticated]
 
+    def post(self, request):
+        refresh_token = request.COOKIES.get('refresh_token')
+
+        if not refresh_token:
+            return Response({'error': 'Refresh token missing'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            token = RefreshToken(refresh_token)
+            token.blacklist()
+        except TokenError:
+            return Response({'error': 'Token is invalid or expired'}, status=status.HTTP_400_BAD_REQUEST)
+
+        response = Response({"message": "Logged out successfully"}, status=status.HTTP_200_OK)
+
+        # ✅ Only use supported arguments in Django 5.2
+        response.delete_cookie('refresh_token', path='/')
+
+        return response
 
 class CustomTokenRefreshView(APIView):
     permission_classes = [AllowAny]

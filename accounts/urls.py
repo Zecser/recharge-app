@@ -3,6 +3,7 @@ from . import views
 from rest_framework_simplejwt.views import TokenRefreshView ,TokenObtainPairView
 from .views import  user_profile_create_or_update,get_admin_profiles,update_admin_profile,list_subadmins, get_subadmin, update_subadmin,createsubadmin
 from .views import CustomTokenRefreshView
+from .views import LogoutView
 urlpatterns = [
 #     listadmins   createsubadmin
     path('admins/', get_admin_profiles, name='get-admin-profiles'),
@@ -19,6 +20,7 @@ urlpatterns = [
  
     path('signup/', views.signup, name='signup'),
     path('login/email/', views.login_email, name='login_email'),
+    path('logout/', LogoutView.as_view(), name='logout'),
 #     path('login/phone/', views.login_phone, name='login_phone'),
     path('otp/generate/', views.generate_otp, name='generate_otp'),
     path('otp/verify/', views.verify_otp, name='verify_otp'),
