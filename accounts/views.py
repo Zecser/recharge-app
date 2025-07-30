@@ -835,7 +835,7 @@ def verify_otp(request):
                 httponly=True,
                 secure=True,  # Set to False for localhost testing if needed
                 # samesite='Strict'
-                samesite='none'
+                samesite='None'
 
             )
 
