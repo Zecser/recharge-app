@@ -292,8 +292,8 @@ def signup(request):
             value=str(refresh),
             httponly=True,
             secure=not settings.DEBUG,  # 🔁 Secure=True only in production
-            # samesite='Lax'
-            samesite='None',
+            samesite='Lax'
+            # samesite='None',
         )
         return response
         
@@ -504,12 +504,20 @@ def login_email(request):
                     'access': str(refresh.access_token)
                 }, status=status.HTTP_200_OK)
 
+                # response.set_cookie(
+                #     key='refresh_token',
+                #     value=str(refresh),
+                #     httponly=True,
+                #     secure=not settings.DEBUG,  # 🔁 Secure=True only in production
+                #     samesite='Lax'
+                #     # samesite='None',
+                # )
                 response.set_cookie(
                     key='refresh_token',
                     value=str(refresh),
                     httponly=True,
-                    secure=not settings.DEBUG,  # 🔁 Secure=True only in production
-                    # samesite='Lax'
+                    # secure=not settings.DEBUG,  # or set True manually
+                    secure=False,
                     samesite='None',
                 )
 
