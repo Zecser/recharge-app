@@ -516,8 +516,8 @@ def login_email(request):
                     key='refresh_token',
                     value=str(refresh),
                     httponly=True,
-                    # secure=not settings.DEBUG,  # or set True manually
-                    secure=False,
+                    secure=not settings.DEBUG,  # or set True manually
+                    # secure=False,
                     samesite='None',
                 )
 
@@ -833,10 +833,10 @@ def verify_otp(request):
                 key='refresh_token',
                 value=str(refresh),
                 httponly=True,
-                # secure=True,  # Set to False for localhost testing if needed
+                secure=True,  # Set to False for localhost testing if needed
                 # samesite='Strict'
-                secure=False,
-                samesite='None'
+                samesite='none'
+
             )
 
             return response
