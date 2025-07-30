@@ -833,8 +833,10 @@ def verify_otp(request):
                 key='refresh_token',
                 value=str(refresh),
                 httponly=True,
-                secure=True,  # Set to False for localhost testing if needed
-                samesite='Strict'
+                # secure=True,  # Set to False for localhost testing if needed
+                # samesite='Strict'
+                secure=False,
+                samesite='None'
             )
 
             return response
