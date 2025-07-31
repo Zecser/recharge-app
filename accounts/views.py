@@ -625,14 +625,13 @@ class LogoutView(APIView):
 @permission_classes([AllowAny])
 def refresh_token(request):
     try:
-        refresh_token = request.data.get('refresh')
+        refresh_token = request.COOKIES.get('refresh_token')  # ← get from cookie
         if not refresh_token:
             return Response({"error": "Refresh token not provided"}, status=400)
 
         refresh = RefreshToken(refresh_token)
         access_token = str(refresh.access_token)
 
-        # ✅ make sure 'user_id' exists in the payload
         user_id = refresh.get("user_id")
         if not user_id:
             return Response({"error": "Invalid refresh token: no user_id"}, status=401)
@@ -640,13 +639,13 @@ def refresh_token(request):
         user = User.objects.get(id=user_id)
 
         response = Response({
-            "access": str(access_token),
+            "access": access_token,
             "user": {
-            "id": user.id,
-            "email": user.email,
-            "username": user.username
-    }
-})
+                "id": user.id,
+                "email": user.email,
+                "username": user.username
+            }
+        })
         response.set_cookie(
             key='refresh_token',
             value=str(refresh),
@@ -659,7 +658,6 @@ def refresh_token(request):
     except Exception as e:
         print("Refresh Error:", str(e))
         return Response({"error": "Failed to get user info from refresh token"}, status=401)
-
 
 # @api_view(['POST'])
 # @permission_classes([AllowAny])

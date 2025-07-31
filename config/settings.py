@@ -175,7 +175,7 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
+CORS_ALLOW_CREDENTIALS=True
 # JWT Settings
 from datetime import timedelta
 SIMPLE_JWT = {
@@ -276,10 +276,11 @@ MEDIA_ROOT = BASE_DIR / 'media'
 #     SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
     
 #     # Session Security
-#     SESSION_COOKIE_SECURE = True
-#     CSRF_COOKIE_SECURE = True
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
 #     SESSION_COOKIE_HTTPONLY = True
 #     CSRF_COOKIE_HTTPONLY = True
+CSRF_TRUSTED_ORIGINS = ["https://rechargewebsite.netlify.app"]
 
 # Logging Configuration
 # LOGGING = {
