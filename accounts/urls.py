@@ -1,9 +1,9 @@
 from django.urls import path
 from . import views
-from rest_framework_simplejwt.views import TokenRefreshView ,TokenObtainPairView
+# from rest_framework_simplejwt.views import TokenRefreshView ,TokenObtainPairView
 from .views import  user_profile_create_or_update,get_admin_profiles,update_admin_profile,list_subadmins, get_subadmin, update_subadmin,createsubadmin
-from .views import CustomTokenRefreshView
-from .views import LogoutView
+# from .views import CustomTokenRefreshView
+from .views import LogoutView,refresh_token
 urlpatterns = [
 #     listadmins   createsubadmin
     path('admins/', get_admin_profiles, name='get-admin-profiles'),
@@ -24,10 +24,10 @@ urlpatterns = [
 #     path('login/phone/', views.login_phone, name='login_phone'),
     path('otp/generate/', views.generate_otp, name='generate_otp'),
     path('otp/verify/', views.verify_otp, name='verify_otp'),
-    path('token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    # path('token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     # path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
-    path('token/refresh/', CustomTokenRefreshView.as_view(), name='token_refresh'),
-
+    # path('token/refresh/', CustomTokenRefreshView.as_view(), name='token_refresh'),
+    path('token/refresh/', views.refresh_token, name='token_refresh'),
     path('profile/', user_profile_create_or_update),
 
     # Admin Management URLs

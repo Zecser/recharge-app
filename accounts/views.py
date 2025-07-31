@@ -553,38 +553,114 @@ class LogoutView(APIView):
 
         return response
 
-class CustomTokenRefreshView(APIView):
-    permission_classes = [AllowAny]
+# class CustomTokenRefreshView(APIView):
+#     permission_classes = [AllowAny]
 
-    def post(self, request, *args, **kwargs):
-        refresh_token = request.COOKIES.get('refresh_token')
+#     def post(self, request, *args, **kwargs):
+#         refresh_token = request.COOKIES.get('refresh_token')
 
+#         if not refresh_token:
+#             return Response({'error': 'Refresh token missing in cookies'}, status=status.HTTP_400_BAD_REQUEST)
+
+#         serializer = TokenRefreshSerializer(data={'refresh': refresh_token})
+
+#         try:
+#             serializer.is_valid(raise_exception=True)
+#         except InvalidToken:
+#             return Response({'error': 'Invalid refresh token'}, status=status.HTTP_401_UNAUTHORIZED)
+
+#         access_token = serializer.validated_data['access']
+
+#         # Decode the refresh token manually to extract the user_id
+#         try:
+#             token = RefreshToken(refresh_token)
+#             user_id = token['user_id']
+#             user = User.objects.get(id=user_id)
+#             user_data = UserSerializer(user).data
+#         except Exception as e:
+#             return Response({'error': 'Failed to get user info from refresh token'}, status=500)
+
+#         return Response({
+#             'access': access_token,
+#             'message': 'Token refreshed successfully',
+#             'user': user_data
+#         }, status=status.HTTP_200_OK)
+# class CustomTokenRefreshView(APIView):
+#     permission_classes = [AllowAny]
+
+#     def post(self, request, *args, **kwargs):
+#         refresh_token = (
+#             request.COOKIES.get('refresh_token') or 
+#             request.data.get('refresh')
+#         )
+
+#         if not refresh_token:
+#             return Response({'error': 'Refresh token missing'}, status=status.HTTP_400_BAD_REQUEST)
+
+#         serializer = TokenRefreshSerializer(data={'refresh': refresh_token})
+
+#         try:
+#             serializer.is_valid(raise_exception=True)
+#         except InvalidToken:
+#             return Response({'error': 'Invalid refresh token'}, status=status.HTTP_401_UNAUTHORIZED)
+
+#         access_token = serializer.validated_data['access']
+
+#         try:
+#             token = RefreshToken(refresh_token)
+#             user_id = token['user_id']
+#             user = User.objects.get(id=user_id)
+#             user_data = UserSerializer(user).data
+#         except Exception as e:
+#             import traceback
+#             print("Token decode error:", traceback.format_exc())
+#             return Response({'error': 'Failed to get user info from refresh token'}, status=500)
+
+#         return Response({
+#             'access': access_token,
+#             'message': 'Token refreshed successfully',
+#             'user': user_data
+#         }, status=status.HTTP_200_OK)
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def refresh_token(request):
+    try:
+        refresh_token = request.data.get('refresh')
         if not refresh_token:
-            return Response({'error': 'Refresh token missing in cookies'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "Refresh token not provided"}, status=400)
 
-        serializer = TokenRefreshSerializer(data={'refresh': refresh_token})
+        refresh = RefreshToken(refresh_token)
+        access_token = str(refresh.access_token)
 
-        try:
-            serializer.is_valid(raise_exception=True)
-        except InvalidToken:
-            return Response({'error': 'Invalid refresh token'}, status=status.HTTP_401_UNAUTHORIZED)
+        # ✅ make sure 'user_id' exists in the payload
+        user_id = refresh.get("user_id")
+        if not user_id:
+            return Response({"error": "Invalid refresh token: no user_id"}, status=401)
 
-        access_token = serializer.validated_data['access']
+        user = User.objects.get(id=user_id)
 
-        # Decode the refresh token manually to extract the user_id
-        try:
-            token = RefreshToken(refresh_token)
-            user_id = token['user_id']
-            user = User.objects.get(id=user_id)
-            user_data = UserSerializer(user).data
-        except Exception as e:
-            return Response({'error': 'Failed to get user info from refresh token'}, status=500)
+        response = Response({
+            "access": str(access_token),
+            "user": {
+            "id": user.id,
+            "email": user.email,
+            "username": user.username
+    }
+})
+        response.set_cookie(
+            key='refresh_token',
+            value=str(refresh),
+            httponly=True,
+            secure=True,
+            samesite='None'
+        )
+        return response
 
-        return Response({
-            'access': access_token,
-            'message': 'Token refreshed successfully',
-            'user': user_data
-        }, status=status.HTTP_200_OK)
+    except Exception as e:
+        print("Refresh Error:", str(e))
+        return Response({"error": "Failed to get user info from refresh token"}, status=401)
+
+
 # @api_view(['POST'])
 # @permission_classes([AllowAny])
 # def login_email(request):
