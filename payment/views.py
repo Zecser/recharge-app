@@ -9,6 +9,7 @@ from django.shortcuts import get_object_or_404
 from wallet.models import Wallet, WalletTransaction
 from plans.models import Plans
 from wallet.serializers import WalletSerializer
+from django.utils import timezone
 
 from accounts.models import User, UserType
 from rest_framework.permissions import IsAuthenticated
@@ -450,7 +451,8 @@ class CreateRazorpayOrderAPIView(APIView):
 #         }, status=200)
 
 from django.utils.timezone import now
-
+from purchases.models import PlanPurchase
+from purchases.serializers import PlanPurchaseSerializer
 class RazorpayPaymentSuccessAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -509,7 +511,7 @@ class RazorpayPaymentSuccessAPIView(APIView):
 
             client_wallet = get_object_or_404(Wallet, user=client_user)
             admin_wallet = get_object_or_404(Wallet, user=admin_user)
-            amount = plan.amount
+            
             # if not client_wallet.can_debit(amount):
             #     print("debiiiiiiiiiiiiiiiiiiiiiiitttttttttttttttttt")
             #     return Response({'error': 'Insufficient balance'}, status=400)
@@ -541,6 +543,22 @@ class RazorpayPaymentSuccessAPIView(APIView):
             )
             print("Client wallet balance:", client_wallet.balance)
             print("Plan amount:", amount)
+            purchase=PlanPurchase.objects.create(
+                user=client_user,
+                plan=plan,
+                amount=amount,
+                transaction_id=razorpay_payment_id,  # ✅ Unique from Razorpay
+                phone_number=number,
+                payment_status='success',
+                payment_method='online',
+                payment_gateway_response={
+                    "razorpay_order_id": razorpay_order_id,
+                    "razorpay_payment_id": razorpay_payment_id,
+                    "razorpay_signature": razorpay_signature
+                },
+                completed_at=timezone.now()
+                )
+            serialized_purchase = PlanPurchaseSerializer(purchase)
 
             # Final Response
             return Response({
@@ -553,6 +571,7 @@ class RazorpayPaymentSuccessAPIView(APIView):
                     'amount': float(amount),
                     'validity': plan.validity
                 },
+                'purchase': serialized_purchase.data,
                 'user': {
                     'id': client_user.id,
                     'email': client_user.email
