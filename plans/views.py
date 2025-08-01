@@ -5,7 +5,8 @@ from rest_framework.response import Response
 from django.db.models import Q
 from .models import Provider, Plans
 from .serializers import ProviderSerializer, PlansSerializer, PlansListSerializer
-
+from .serializers import ProviderDiscountUpdateSerializer
+from rest_framework.permissions import IsAdminUser
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def plans_list(request):
@@ -88,3 +89,16 @@ def providers_list(request):
     
     serializer = ProviderSerializer(providers, many=True)
     return Response(serializer.data, status=status.HTTP_200_OK)
+@api_view(['PATCH'])
+@permission_classes([IsAdminUser])  # Only Admins
+def update_provider_discount(request, provider_id):
+    try:
+        provider = Provider.objects.get(id=provider_id)
+    except Provider.DoesNotExist:
+        return Response({"error": "Provider not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    serializer = ProviderDiscountUpdateSerializer(provider, data=request.data, partial=True)
+    if serializer.is_valid():
+        serializer.save()
+        return Response({"message": "Discount updated", "data": serializer.data})
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

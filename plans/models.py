@@ -1,7 +1,8 @@
 from django.db import models
-
+from decimal import Decimal, ROUND_HALF_UP
 class Provider(models.Model):
     title = models.CharField(max_length=100)
+    discount_percentage = models.PositiveIntegerField(null=True, blank=True, help_text="Optional discount (%) to apply to all its plans")
     is_active = models.BooleanField(default=True)
     
     def __str__(self):
@@ -21,5 +22,13 @@ class Plans(models.Model):
         verbose_name_plural = 'Plans'
         ordering = ['created_at']
     
+
+    @property
+    def final_price(self):
+        if self.provider.discount_percentage:
+            discount_percentage = Decimal(self.provider.discount_percentage) / Decimal('100')
+            discount = self.amount * discount_percentage
+            return (self.amount - discount).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        return self.amount
     def __str__(self):
         return f"{self.provider.title} - {self.title}"
