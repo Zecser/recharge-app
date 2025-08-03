@@ -4,6 +4,7 @@ from . import views
 from .views import  user_profile_create_or_update,get_admin_profiles,update_admin_profile,list_subadmins, get_subadmin, update_subadmin,createsubadmin
 # from .views import CustomTokenRefreshView
 from .views import LogoutView,refresh_token
+from .views import CurrentUserView
 urlpatterns = [
 #     listadmins   createsubadmin
     path('admins/', get_admin_profiles, name='get-admin-profiles'),
@@ -29,7 +30,7 @@ urlpatterns = [
     # path('token/refresh/', CustomTokenRefreshView.as_view(), name='token_refresh'),
     path('token/refresh/', views.refresh_token, name='token_refresh'),
     path('profile/', user_profile_create_or_update),
-
+    path('me/', CurrentUserView.as_view(), name='current-user'),
     # Admin Management URLs
     path('admin/users/', views.UserListView.as_view(), name='admin-user-list'),
     path('admin/users/create/', views.create_user, name='admin-create-user'),

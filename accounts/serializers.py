@@ -148,6 +148,21 @@ class OTPVerifySerializer(serializers.Serializer):
             raise serializers.ValidationError("Invalid OTP")
 
         return attrs
+# accounts/serializers.py
+
+from rest_framework import serializers
+from .models import User, UserType
+
+class CurrentUserSerializer(serializers.ModelSerializer):
+    user_type_display = serializers.SerializerMethodField()
+    sim_provider = serializers.StringRelatedField()
+
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'email', 'phone', 'user_type', 'user_type_display', 'sim_provider']
+
+    def get_user_type_display(self, obj):
+        return obj.get_user_type_display()
 
 
 class UserSerializer(serializers.ModelSerializer):
