@@ -8,6 +8,11 @@ class Provider(models.Model):
         null=True, blank=True,
         help_text="Optional discount (%) to apply to all its plans"
     )
+    point_value = models.DecimalField(  # 👉 new field
+        max_digits=10, decimal_places=2,
+        null=True, blank=True,
+        help_text="Point value used for calculating discount"
+    )
     is_active = models.BooleanField(default=True)
     
     def __str__(self):
