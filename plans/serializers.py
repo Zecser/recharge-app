@@ -39,6 +39,9 @@ class PlansListSerializer(serializers.ModelSerializer):
     
 
 class ProviderDiscountUpdateSerializer(serializers.ModelSerializer):
+    discount_percentage = serializers.DecimalField(
+        max_digits=5, decimal_places=2, required=False, allow_null=True
+    )
     class Meta:
         model = Provider
         fields = ['id', 'title', 'discount_percentage']

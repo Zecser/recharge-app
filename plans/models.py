@@ -2,7 +2,12 @@ from django.db import models
 from decimal import Decimal, ROUND_HALF_UP
 class Provider(models.Model):
     title = models.CharField(max_length=100)
-    discount_percentage = models.PositiveIntegerField(null=True, blank=True, help_text="Optional discount (%) to apply to all its plans")
+    # discount_percentage = models.PositiveIntegerField(max_digits=5, decimal_places=2, null=True, blank=True, help_text="Optional discount (%) to apply to all its plans")
+    discount_percentage = models.DecimalField(
+        max_digits=5, decimal_places=2,
+        null=True, blank=True,
+        help_text="Optional discount (%) to apply to all its plans"
+    )
     is_active = models.BooleanField(default=True)
     
     def __str__(self):
