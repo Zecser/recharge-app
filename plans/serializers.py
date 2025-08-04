@@ -4,7 +4,7 @@ from .models import Provider, Plans
 class ProviderSerializer(serializers.ModelSerializer):
     class Meta:
         model = Provider
-        fields = ['id', 'title', 'discount_percentage', 'point_value', 'is_active']
+        fields = ['id', 'title', 'discount_percentage', 'point_value','banner_image', 'is_active']
 
 class PlansSerializer(serializers.ModelSerializer):
     provider = ProviderSerializer(read_only=True)

@@ -13,6 +13,8 @@ class Provider(models.Model):
         null=True, blank=True,
         help_text="Point value used for calculating discount"
     )
+    banner_image = models.ImageField(upload_to='provider_banners/', null=True, blank=True)
+
     is_active = models.BooleanField(default=True)
     
     def __str__(self):
